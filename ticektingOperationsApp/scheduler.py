@@ -188,7 +188,7 @@ def call_create_ticket():
                     else:
                         print(f"Failed to create ticket for vulnerability {freshservice_url} {vul_id}: {response.json()}")
 
-                return JsonResponse({"message": f"{count} tickets created successfully."}, status=200)
+                return JsonResponse({"message": f"tickets created successfully."}, status=200)
 
             else:
                 latest_existing_id = max(existing_vul_ids)
@@ -359,13 +359,12 @@ def call_create_ticket():
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
                             save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
-                            save_ticket_details(ticket_data, exploitIdList,patchesIdList)
-                            count += 1
-                            print(f"Ticket created successfully for vulnerability {vul_id} (Count: {count})")
+                            save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
+                            print(f"Ticket created successfully for vulnerabilities")
                         else:
                             print(f"Failed to create ticket for vulnerability {vul_id}: {response.json()}")
 
-                    return JsonResponse({"message": f"{count} tickets created successfully."}, status=200)
+                    return JsonResponse({"message": "tickets created successfully."}, status=200)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
