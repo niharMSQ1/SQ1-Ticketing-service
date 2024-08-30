@@ -465,14 +465,14 @@ def updateExploitsAndPatches():
                         existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
                         newPatchesList = existingPatchIds + newPatchIds
                         ticket_service_details.patchesList = str(newPatchesList)
-                        # ticket_service_details.save()
+                        ticket_service_details.save()
                     newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
                     if newExploitIds:
                         ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
                         existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
                         newExploitsList = existingExploitIds + newExploitIds
                         ticket_service_details.exploitsList = str(newExploitsList)
-                        # ticket_service_details.save()
+                        ticket_service_details.save()
 
                     cursor.execute(f"""
                     SELECT *
