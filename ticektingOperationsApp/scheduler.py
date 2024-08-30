@@ -465,14 +465,14 @@ def updateExploitsAndPatches():
                         existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
                         newPatchesList = existingPatchIds + newPatchIds
                         ticket_service_details.patchesList = str(newPatchesList)
-                        ticket_service_details.save()
+                        # ticket_service_details.save()
                     newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
                     if newExploitIds:
                         ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
                         existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
                         newExploitsList = existingExploitIds + newExploitIds
                         ticket_service_details.exploitsList = str(newExploitsList)
-                        ticket_service_details.save()
+                        # ticket_service_details.save()
 
                     cursor.execute(f"""
                     SELECT *
@@ -569,71 +569,71 @@ def updateExploitsAndPatches():
                                 assets["servers"].append(server)
                             index = index+1
                 
-                detection_summary_table = render_to_string('detection_summary_table.html', context)
+                    detection_summary_table = render_to_string('detection_summary_table.html', context)
 
-                remediationContext = {
-                            "solutionPatch":result[0].get("solution_patch"),
-                            "solutionWorkAround":result[0].get("solution_workaround"),
-                            "preventiveMeasure":result[0].get("preventive_measure")
+                    remediationContext = {
+                                "solutionPatch":result[0].get("solution_patch"),
+                                "solutionWorkAround":result[0].get("solution_workaround"),
+                                "preventiveMeasure":result[0].get("preventive_measure")
+                            }
+
+                    remediation_table = render_to_string('remedieationTableUpd.html', remediationContext)
+                    exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits}) if exploits else render_to_string('exploits_table.html', {'exploits': None})
+
+                    if patches:
+                        patch_data = []
+                        for patch in patches:
+                            patchSolution = patch.get("solution", "")
+                            patchDescription = patch.get("description", "")
+                            patchComplexity = patch.get("complexity", "")
+                            patchType = patch.get("type", "")
+                            os_list = json.loads(patch.get("os", "[]"))
+                            patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
+
+                            patch_data.append({
+                                'solution': patchSolution,
+                                'description': patchDescription,
+                                'complexity': patchComplexity,
+                                'type': patchType,
+                                'os': patchOs,
+                                'url': patch.get("url", "")
+                            })
+
+                        patchContext = {
+                            'patches': patch_data
+                        }
+                    else:
+                        patchContext = {
+                            'patches': []
                         }
 
-                remediation_table = render_to_string('remedieationTableUpd.html', remediationContext)
-                exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits}) if exploits else render_to_string('exploits_table.html', {'exploits': None})
+                    patch_table_html = render_to_string('patch_table.html', patchContext)
+                    workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
+                    servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
-                if patches:
-                    patch_data = []
-                    for patch in patches:
-                        patchSolution = patch.get("solution", "")
-                        patchDescription = patch.get("description", "")
-                        patchComplexity = patch.get("complexity", "")
-                        patchType = patch.get("type", "")
-                        os_list = json.loads(patch.get("os", "[]"))
-                        patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
-
-                        patch_data.append({
-                            'solution': patchSolution,
-                            'description': patchDescription,
-                            'complexity': patchComplexity,
-                            'type': patchType,
-                            'os': patchOs,
-                            'url': patch.get("url", "")
-                        })
-
-                    patchContext = {
-                        'patches': patch_data
+                    combined_data = {
+                            "description": result[0].get('description').replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "subject": result[0].get('name'),
+                            "email": "ram@freshservice.com",
+                            "priority": 4,
+                            "status": 2,
+                            "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+                            "workspace_id": 2,
+                            "urgency": 3,
+                        }
+                    url = url+"/api/v2/tickets/"+str((ticket.get("id")))
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Basic {key}"
                     }
-                else:
-                    patchContext = {
-                        'patches': []
-                    }
-
-                patch_table_html = render_to_string('patch_table.html', patchContext)
-                workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
-                servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
-
-                combined_data = {
-                        "description": result[0].get('description').replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
-                        "subject": result[0].get('name'),
-                        "email": "ram@freshservice.com",
-                        "priority": 4,
-                        "status": 2,
-                        "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
-                        "workspace_id": 2,
-                        "urgency": 3,
-                    }
-                url = url+"/api/v2/tickets/"+str((ticket.get("id")))
-                headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": f"Basic {key}"
-                }
-                response = requests.put(url, json=combined_data, headers=headers)
-                if response.status_code == 201:
-                    ticket_id = response.json()['ticket'].get("id")
-                    ticket_data = response.json().get("ticket", {})
-                    # save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
-                    # save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
-                else:
-                    print(f"Failed to create ticket for vulnerability {url} {vulnerabilityId}: {response.json()}")
+                    response = requests.put(url, json=combined_data, headers=headers)
+                    if response.status_code == 201:
+                        ticket_id = response.json()['ticket'].get("id")
+                        ticket_data = response.json().get("ticket", {})
+                        # save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
+                        # save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
+                    else:
+                        print(f"Failed to create ticket for vulnerability {url} {vulnerabilityId}: {response.json()}")
 
 
                     
