@@ -1,0 +1,36 @@
+{% if patches %}
+<div dir="ltr" style="font-family: Arial, sans-serif; font-size: 16px;">
+    <strong>Patch Table:</strong>
+</div>
+<br>
+<table style="border-collapse: collapse; width: 100%; border: 3px solid black; box-shadow: 0 0 5px blue; font-family: Arial, sans-serif; font-size: 16px;">
+    <thead>
+        <tr>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch Solution</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch Description</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch Complexity</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch URL</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch Type</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch OS</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for patch in patches %}
+        <tr>
+            <td style="border: 1px solid black; padding: 8px;">{{ patch.solution }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ patch.description }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ patch.complexity }}</td>
+            <td style="border: 1px solid black; padding: 8px;"><a href="{{ patch.url }}">{{ patch.url }}</a></td>
+            <td style="border: 1px solid black; padding: 8px;">{{ patch.type }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ patch.os }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<br>
+{% else %}
+<div dir="ltr" style="font-family: Arial, sans-serif; font-size: 16px;">
+    <strong>Patch Table:</strong> No patches exist for this vulnerability.
+</div>
+<br>
+{% endif %}

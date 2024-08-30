@@ -1,0 +1,35 @@
+{% if result %}
+<br><br>
+<div dir="ltr" style="font-family: Arial, sans-serif; font-size: 16px;">
+    <strong>Detection summary:</strong>
+</div>
+<br>
+<table style="border-collapse: collapse; width: 100%; border: 3px solid black; box-shadow: 0 0 5px blue; font-family: Arial, sans-serif; font-size: 16px;">
+    <thead>
+        <tr>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">CVE</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Severity</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">First identified on</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Last identified on</th>
+            <th style="border: 1px solid black; font-weight: bold; padding: 8px; text-align: left;">Patch priority</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="border: 1px solid black; padding: 8px;">
+                {{ result.CVEs|safe }}
+            </td>
+            <td style="border: 1px solid black; padding: 8px;">{{ result.severity }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ result.first_seen }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ result.last_identified_on }}</td>
+            <td style="border: 1px solid black; padding: 8px;">{{ result.patch_priority }}</td>
+        </tr>
+    </tbody>
+</table>
+<br>
+{% else %}
+<div dir="ltr" style="font-family: Arial, sans-serif; font-size: 16px;">
+    <strong>Detection Table:</strong> Nothing detected.
+</div>
+<br>
+{% endif %}
