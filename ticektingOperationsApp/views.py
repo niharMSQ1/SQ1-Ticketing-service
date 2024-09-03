@@ -16,7 +16,16 @@ def test(request):
         "message":"Hello World!"
     })
 
-
+FRESHSERVICE_ACCOUNTS = [
+    {
+        "domain": "sq1vinay.freshservice.com",
+        "api_key": "eE4xcmdQMFlobkZyV1JZdmV2a1Q=	"
+    },
+    {
+        "domain": "sq1.freshservice.com",
+        "api_key": "RElKcG5MOEFtcjBtNW53T2JySg=="
+    }
+]
 
 @csrf_exempt
 def delete_all_tickets(request):
