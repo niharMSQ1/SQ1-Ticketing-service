@@ -96,8 +96,8 @@ def gaut(request):
 
 @csrf_exempt
 def createTicketManually(request):
-    from .scheduler import call_create_ticket
-    req = call_create_ticket()
+    from .scheduler import jira_call_create_ticket
+    req = jira_call_create_ticket()
     return JsonResponse({
         "message":"hello world"
     })
@@ -109,3 +109,31 @@ def updateTicketManually(request):
     return JsonResponse({
         "message":"hello world"
     })
+
+JIRA_URL = 'https://secqureone-team-pe11fce7.atlassian.net/rest/api/3/issue/'
+AUTH = ('nihar.m@secqureone.com', 'ATATT3xFfGF0REHi4k0Xf7PpjfqEuLiuywMRKaJ46Oy7UqKD5Dv_FIyiDo7EgZUoMGwDZeTtApWbBeZkURvnuiYehF-aypzk0MqjSmQ73jm0K1bSYgVRLV8oIC7e7r8jzAxroovEEL7GEfHOwJaYe_2U2NRWkqYbXJHIqlCjxvo8gMR2EgYO7BU=D923E9AC')
+
+@csrf_exempt
+def delete_jira_issues(request):
+    if request.method == 'DELETE':
+        try:
+            response = requests.get("https://secqureone-team-pe11fce7.atlassian.net/rest/api/3/search", auth=AUTH)
+            if response.status_code != 200:
+                return JsonResponse({'error': response.text}, status=response.status_code)
+
+            issues = response.json().get('issues', [])
+            responses = []
+            for issue in issues:
+                issue_key = issue['key']
+                delete_response = requests.delete(f'{JIRA_URL}{issue_key}', auth=AUTH)
+                if delete_response.status_code == 204:
+                    responses.append({'key': issue_key, 'status': 'deleted'})
+                else:
+                    responses.append({'key': issue_key, 'status': 'error', 'message': delete_response.text})
+
+            return JsonResponse(responses, safe=False)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

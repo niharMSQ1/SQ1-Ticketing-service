@@ -8,7 +8,10 @@ from django.http import JsonResponse
 import json
 from django.template.loader import render_to_string
 from .ticketing_service import save_vulnerability, save_ticket_details
+from .helpers import *
 import ast
+from requests.auth import HTTPBasicAuth
+from datetime import datetime
 
 
 def call_create_ticket():
@@ -21,7 +24,7 @@ def call_create_ticket():
             cursor.execute("SELECT * FROM vulnerabilities ORDER BY id DESC")
             results = cursor.fetchall()
 
-            existing_vul_ids = set(Vulnerabilities.objects.values_list('vulId', flat=True))
+            existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Freshservice")
 
             if len(existing_vul_ids) == 0:
                 for result in results:
@@ -642,6 +645,415 @@ def updateExploitsAndPatches():
 
 
         print()
+
+def jira_call_create_ticket():
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM vulnerabilities ORDER BY id DESC")
+            results = cursor.fetchall()
+
+            existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Jira")
+
+            if len(existing_vul_ids) == 0:
+                for result in results:
+                    vul_id = result.get("id")
+                    organization_id = result.get("organization_id")
+
+                    if vul_id not in existing_vul_ids:
+
+                        cursor.execute("""
+                        SELECT assetable_type, assetable_id
+                        FROM assetables
+                        WHERE vulnerabilities_id = %s
+                    """, (vul_id,))
+                    assetables_results = cursor.fetchall()
+
+                    assets = {
+                        "servers": [],
+                        "workstations": []
+                    }
+                    ass_type = []
+                    for i in assetables_results:
+                        ass_type.append(i['assetable_type'])
+
+                    ass_id = []
+                    for i in assetables_results:
+                        ass_id.append(i['assetable_id'])
+                    
+                    index = 0
+                    for i in ass_type:
+                        j = ass_id[index]
+                        if i == 'App\\Models\\Workstations':
+                            cursor.execute("""
+                            SELECT host_name, ip_address
+                            FROM workstations
+                            WHERE id = %s AND organization_id = %s
+                            """, (j, organization_id))
+                            workstation = cursor.fetchone()
+                            if workstation:
+                                assets["workstations"].append(workstation)
+                            index = index+1
+                        
+    
+                        if i == 'App\\Models\\Servers':
+                            cursor.execute("""
+                            SELECT host_name, ip_address
+                            FROM workstations
+                            WHERE id = %s AND organization_id = %s
+                            """, (j, organization_id))
+                            server = cursor.fetchone()
+                            if server:
+                                assets["servers"].append(server)
+                            index = index+1
+
+                    mapped_priority = None
+
+                    risk = float(result.get("risk"))
+
+                    # if 9.0 <= risk <= 10.0:
+                    #     mapped_priority = 4
+                    # elif 7.0 <= risk <= 8.9:
+                    #     mapped_priority = 3
+                    # elif 4.0 <= risk <= 6.9:
+                    #     mapped_priority = 2
+                    # elif 0.1 <= risk <= 3.9:
+                    #     mapped_priority = 1
+
+                    cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
+                    exploits = cursor.fetchall()
+                    exploitIdList = []
+                    if exploits !=[]:
+                        for exploit in exploits:
+                            exploitIdList.append(exploit.get("id"))
+
+                    cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vul_id,))
+                    patches = cursor.fetchall()
+                    patchesIdList = []
+                    if patches !=[]:
+                        for patch in patches:
+                            patchesIdList.append(patch.get("id"))
+
+                    cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'Jira'", (organization_id,))
+                    ticketing_tool = cursor.fetchone()
+
+                    if not ticketing_tool:
+                        continue
+
+                    jira_url = f"{ticketing_tool.get('url')}"+"/rest/api/3/issue"
+                    jira_key = ticketing_tool.get("key")
+
+
+                    resultCVEs = json.loads(result.get("CVEs", {}))
+                    if isinstance(resultCVEs, dict):
+                        cve_list = resultCVEs.get("cves", [])
+                    else:
+                        cve_list = []
+                    cve_string = ", ".join(cve_list)
+                    context = {
+                        'result': {
+                            'CVEs': cve_string,
+                            'severity': result.get('severity'),
+                            'first_seen': result.get('first_seen'),
+                            'last_identified_on': result.get('last_identified_on'),
+                            'patch_priority': result.get('patch_priority'),
+                        }
+                    }
+
+                    if patches:
+                        patch_data = []
+                        for patch in patches:
+                            patchSolution = patch.get("solution", "")
+                            patchDescription = patch.get("description", "")
+                            patchComplexity = patch.get("complexity", "")
+                            patchType = patch.get("type", "")
+                            os_list = json.loads(patch.get("os", "[]"))
+                            patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
+
+                            patch_data.append({
+                                'solution': patchSolution,
+                                'description': patchDescription,
+                                'complexity': patchComplexity,
+                                'type': patchType,
+                                'os': patchOs,
+                                'url': patch.get("url", "")
+                            })
+
+                        patchContext = {
+                            'patches': patch_data
+                        }
+                    else:
+                        patchContext = {
+                            'patches': []
+                        }
+
+                    remediationObj = {
+                        "solution_patch": result["solution_patch"],
+                        "solution_workaround": result["solution_workaround"],
+                        "preventive_measure": result["preventive_measure"],
+                        }
+                    cves = json.loads(result["CVEs"])
+                    cves_string = ", ".join(cves["cves"])
+                    detectionSummaryObj = {
+                        "CVE": cves_string,
+                        "Severity": result["severity"],
+                        "first_identified_on": result["first_seen"],
+                        "last_identifies_on":result["last_identified_on"],
+                        "patch_priority":result["patch_priority"]
+                        }
+                    
+                    vulnerability_description = result['description']
+                    workstations = assets['workstations']
+                    servers = assets['servers']
+
+                    listOfDetection = [detectionSummaryObj]
+
+                    def convert_datetime_to_string(data):
+                        for item in data:
+                            for key, value in item.items():
+                                if isinstance(value, datetime):
+                                    item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                        return data
+                    
+                    listOfDetection = convert_datetime_to_string(listOfDetection)
+
+                    listOfRemediation = [remediationObj]
+                    allExploits = exploits
+                    allPatches = patches            
+
+                    username = "nihar.m@secqureone.com"
+                    password = ticketing_tool.get("key")
+
+                    # def check_types():
+                    #     assert isinstance(listOfDetection, list), "listOfDetection should be a list"
+                    #     assert all(isinstance(item, dict) for item in listOfDetection), "All items in listOfDetection should be dictionaries"
+                    #     assert isinstance(listOfRemediation, list), "listOfRemediation should be a list"
+                    #     assert all(isinstance(item, dict) for item in listOfRemediation), "All items in listOfRemediation should be dictionaries"
+                    #     assert isinstance(workstations, list), "workstations should be a list"
+                    #     assert all(isinstance(item, dict) for item in workstations), "All items in workstations should be dictionaries"
+                    #     assert isinstance(servers, list), "servers should be a list"
+                    #     assert all(isinstance(item, dict) for item in servers), "All items in servers should be dictionaries"
+                    #     assert isinstance(allExploits, list), "allExploits should be a list"
+                    #     assert all(isinstance(item, dict) for item in allExploits), "All items in allExploits should be dictionaries"
+                    #     assert isinstance(allPatches, list), "allPatches should be a list"
+                    #     assert all(isinstance(item, dict) for item in allPatches), "All items in allPatches should be dictionaries"
+
+                    # check_types()
+
+
+                    combined_data = {
+                        "fields": {
+                            "project": {
+                                "key": "SCRUM"
+                            },
+                            "summary": "Dynamic Issue Summary",
+                            "description": {
+                                "version": 1,
+                                "type": "doc",
+                                "content": [
+                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Dynamic issue description based on provided data."
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
+                                                    ]
+                                                }
+                                                for det in listOfDetection
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Patch"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Workaround"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Preventive Measure"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
+                                                    ]
+                                                }
+                                                for rem in listOfRemediation
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
+                                                    ]
+                                                }
+                                                for ws in workstations
+                                            ],
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": srv["host_name"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": srv["ip_address"]}]}]}
+                                                    ]
+                                                }
+                                                for srv in servers
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dependency"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["name"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["description"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["complexity"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["dependency"]}]}]}
+                                                    ]
+                                                }
+                                                for exp in allExploits
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Solution"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "URL"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Type"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "OS"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["solution"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["description"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["complexity"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["url"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["type"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["os"]}]}]}
+                                                    ]
+                                                }
+                                                for patch in allPatches
+                                            ]
+                                        ]
+                                    }
+                                ]
+                            },
+                            "issuetype": {
+                                "name": "Task"
+                            },
+                            "assignee": {
+                                "name": "assignee_username"
+                            },
+                            "labels": [
+                                "vulnerability",
+                                "security"
+                            ]
+                        }
+                    }
+
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {jira_key}"
+                    }
+
+
+                    response = requests.post(jira_url, data = json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                    
+
+
+
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    finally:
+        if connection.is_connected():
+            connection.close()
     
 
 def start_scheduler():

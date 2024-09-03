@@ -5,7 +5,8 @@ urlpatterns = [
     path('', test),
     path('delete-all-tickets/', delete_all_tickets, name='delete_all_tickets'),
     path('create-ticket-manually/', createTicketManually),
-    path('update-ticket-manually/', updateTicketManually)
+    path('update-ticket-manually/', updateTicketManually),
+    path('delete_jira_issues/',delete_jira_issues)
 ]
 
 
