@@ -8,7 +8,6 @@ from django.http import JsonResponse
 import json
 from django.template.loader import render_to_string
 from .ticketing_service import save_vulnerability, save_ticket_details
-from .helpers import *
 import ast
 from requests.auth import HTTPBasicAuth
 from datetime import datetime
