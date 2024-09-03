@@ -826,22 +826,6 @@ def jira_call_create_ticket():
                     username = "nihar.m@secqureone.com"
                     password = ticketing_tool.get("key")
 
-                    # def check_types():
-                    #     assert isinstance(listOfDetection, list), "listOfDetection should be a list"
-                    #     assert all(isinstance(item, dict) for item in listOfDetection), "All items in listOfDetection should be dictionaries"
-                    #     assert isinstance(listOfRemediation, list), "listOfRemediation should be a list"
-                    #     assert all(isinstance(item, dict) for item in listOfRemediation), "All items in listOfRemediation should be dictionaries"
-                    #     assert isinstance(workstations, list), "workstations should be a list"
-                    #     assert all(isinstance(item, dict) for item in workstations), "All items in workstations should be dictionaries"
-                    #     assert isinstance(servers, list), "servers should be a list"
-                    #     assert all(isinstance(item, dict) for item in servers), "All items in servers should be dictionaries"
-                    #     assert isinstance(allExploits, list), "allExploits should be a list"
-                    #     assert all(isinstance(item, dict) for item in allExploits), "All items in allExploits should be dictionaries"
-                    #     assert isinstance(allPatches, list), "allPatches should be a list"
-                    #     assert all(isinstance(item, dict) for item in allPatches), "All items in allPatches should be dictionaries"
-
-                    # check_types()
-
 
                     combined_data = {
                         "fields": {
