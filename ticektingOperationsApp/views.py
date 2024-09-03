@@ -110,8 +110,8 @@ def updateTicketManually(request):
         "message":"hello world"
     })
 
-JIRA_URL = 'https://secqureone-team-pe11fce7.atlassian.net/rest/api/3/issue/'
-AUTH = ('nihar.m@secqureone.com', 'ATATT3xFfGF0REHi4k0Xf7PpjfqEuLiuywMRKaJ46Oy7UqKD5Dv_FIyiDo7EgZUoMGwDZeTtApWbBeZkURvnuiYehF-aypzk0MqjSmQ73jm0K1bSYgVRLV8oIC7e7r8jzAxroovEEL7GEfHOwJaYe_2U2NRWkqYbXJHIqlCjxvo8gMR2EgYO7BU=D923E9AC')
+JIRA_URL = config("JIRA_URL")
+AUTH = (config("JIRA_USERNAME"), config("JIRA_PASSWORD"))
 
 @csrf_exempt
 def delete_jira_issues(request):
