@@ -1,19 +1,26 @@
+import ast
+import json
+import requests
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-import requests
-from decouple import config
-from .dbUtils import get_connection
-from .models import *
-from django.http import JsonResponse
-import json
-from django.template.loader import render_to_string
-from .ticketing_service import save_vulnerability, save_ticket_details
-import ast
-from requests.auth import HTTPBasicAuth
+
 from datetime import datetime
 
+from decouple import config
 
-def call_create_ticket():
+from django.http import JsonResponse
+
+from django.template.loader import render_to_string
+
+from requests.auth import HTTPBasicAuth
+
+from .dbUtils import get_connection
+from .models import *
+from .ticketing_service import save_ticket_details, save_vulnerability
+
+
+def freshservice_call_create_ticket():
     connection = get_connection()
     if not connection or not connection.is_connected():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
@@ -375,43 +382,7 @@ def call_create_ticket():
         if connection.is_connected():
             connection.close()
 
-
-def get_all_tickets_and_update():
-    url= "https://secqureone770.freshservice.com"+"/api/v2/tickets"
-    api_key= "cXZwcWhEcVJYdTh3WkltUW9aTw=="
-
-    headers = {
-    'Authorization': f'Basic {api_key}'
-    }
-
-
-    response = requests.get(url, headers=headers)
-    idd = []
-    for res in response.json()["tickets"]:
-        idd.append((res))
-    # idd.sort()
-    return idd
-
-
-# def check_closed_tickets():
-#     url = "https://secqureone509.freshservice.com/api/v2/tickets"
-#     headers = {
-#         "Content-Type": "application/json",
-#         "Authorization": f"Basic {config('FRESHSERVICE_API_AUTH')}"
-#     }
-
-#     response = requests.get(url, headers=headers)
-
-#     if response.status_code == 200:
-#         tickets = response.json().get('tickets', [])
-#         print("Closed Tickets:")
-#         for ticket in tickets:
-#             print(f"Ticket ID: {ticket['id']}, Subject: {ticket['subject']}, Status: {ticket['status']}")
-#     else:
-#         print(f"Failed to retrieve tickets. Status code: {response.status_code}")
-#         print(response.json())
-
-def updateExploitsAndPatches():
+def updateExploitsAndPatchesForFreshservice():
     connection = get_connection()
     if not connection or not connection.is_connected():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
@@ -1041,7 +1012,7 @@ def jira_call_create_ticket():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(call_create_ticket, IntervalTrigger(minutes=90))
-    # scheduler.add_job(check_closed_tickets, IntervalTrigger(minutes=0.25))
-    scheduler.add_job(updateExploitsAndPatches, IntervalTrigger(minutes=180))
+    # scheduler.add_job(freshservice_call_create_ticket, IntervalTrigger(minutes=90))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, IntervalTrigger(minutes=180))
+    # scheduler.add_job(jira_call_create_ticket, IntervalTrigger(minutes=180))
     scheduler.start()

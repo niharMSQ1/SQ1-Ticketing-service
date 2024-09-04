@@ -28,7 +28,7 @@ FRESHSERVICE_ACCOUNTS = [
 ]
 
 @csrf_exempt
-def delete_all_tickets(request):
+def delete_all_tickets_freshservice(request):
     def delete_tickets_for_account(domain, api_key):
         headers = {
             "Content-Type": "application/json",
@@ -36,7 +36,7 @@ def delete_all_tickets(request):
         }
         tickets_url = f"https://{domain}/api/v2/tickets"
         params = {
-            "per_page": 100  # Fetch 100 tickets per page (maximum limit)
+            "per_page": 100
         }
 
         try:
@@ -49,7 +49,6 @@ def delete_all_tickets(request):
                 if not tickets:
                     return {"message": f"No tickets found or all tickets have been deleted on {domain}."}, 200
 
-                # Delete each ticket
                 for ticket in tickets:
                     ticket_id = ticket.get("id")
                     delete_url = f"{tickets_url}/{ticket_id}"
@@ -60,7 +59,6 @@ def delete_all_tickets(request):
                     else:
                         print(f"Failed to delete ticket {ticket_id} on {domain}: {delete_response.json()}")
 
-                # Check if there are more pages
                 if "next_page" not in response.json():
                     break
 
@@ -76,26 +74,16 @@ def delete_all_tickets(request):
         result, status_code = delete_tickets_for_account(domain, api_key)
         results.append({"domain": domain, "result": result, "status_code": status_code})
 
-    # Aggregate results
     error_messages = [result["error"] for result in results if "error" in result["result"]]
     success_messages = [result["result"]["message"] for result in results if "message" in result["result"]]
 
     if error_messages:
         return JsonResponse({"errors": error_messages}, status=500)
     
-    return JsonResponse({"messages": success_messages}, status=200)    
+    return JsonResponse({"messages": success_messages}, status=200)
 
 @csrf_exempt
-def gaut(request):
-    from .scheduler import get_all_tickets_and_update
-    req = get_all_tickets_and_update()
-    return JsonResponse({
-        "message":req
-    })
-
-
-@csrf_exempt
-def createTicketManually(request):
+def createTicketManuallyJira(request):
     from .scheduler import jira_call_create_ticket
     req = jira_call_create_ticket()
     return JsonResponse({
@@ -103,9 +91,17 @@ def createTicketManually(request):
     })
 
 @csrf_exempt
-def updateTicketManually(request):
-    from .scheduler import updateExploitsAndPatches
-    req = updateExploitsAndPatches()
+def createTicketManuallyForFreshservice(request):
+    from .scheduler import freshservice_call_create_ticket
+    req = freshservice_call_create_ticket()
+    return JsonResponse({
+        "message":"hello world"
+    })
+
+@csrf_exempt
+def updateTicketManuallyForFreshService(request):
+    from .scheduler import updateExploitsAndPatchesForFreshservice
+    req = updateExploitsAndPatchesForFreshservice()
     return JsonResponse({
         "message":"hello world"
     })
