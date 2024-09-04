@@ -3,10 +3,10 @@ from .views import *
 
 urlpatterns = [
     path('', test),
-    path('delete-all-tickets/', delete_all_tickets_freshservice, name='delete_all_tickets'),
+    path('delete-all-tickets-freshservice/', delete_all_tickets_freshservice, name='delete_all_tickets'),
     path('create-ticket-manually-freshservice/', createTicketManuallyForFreshservice),
     path('create-ticket-manually-jira/', createTicketManuallyJira),
-    path('update-ticket-manually-jira/', updateTicketManuallyForFreshService),
+    path('update-ticket-manually-freshservice/', updateTicketManuallyForFreshService),
     path('delete_jira_issues/',delete_jira_issues)
 ]
 

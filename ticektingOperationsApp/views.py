@@ -113,7 +113,7 @@ AUTH = (config("JIRA_USERNAME"), config("JIRA_PASSWORD"))
 def delete_jira_issues(request):
     if request.method == 'DELETE':
         try:
-            response = requests.get("https://secqureone-team-pe11fce7.atlassian.net/rest/api/3/search", auth=AUTH)
+            response = requests.get("https://secqureone-team-r8i3piuv.atlassian.net/rest/api/3/search", auth=AUTH)
             if response.status_code != 200:
                 return JsonResponse({'error': response.text}, status=response.status_code)
 

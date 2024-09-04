@@ -27,7 +27,7 @@ def freshservice_call_create_ticket():
 
     try:
         with connection.cursor(dictionary=True) as cursor:
-            cursor.execute("SELECT * FROM vulnerabilities ORDER BY id DESC")
+            cursor.execute("SELECT * FROM vulnerabilities")
             results = cursor.fetchall()
 
             existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Freshservice")
@@ -614,7 +614,7 @@ def jira_call_create_ticket():
 
     try:
         with connection.cursor(dictionary=True) as cursor:
-            cursor.execute("SELECT * FROM vulnerabilities ORDER BY id DESC")
+            cursor.execute("SELECT * FROM vulnerabilities")
             results = cursor.fetchall()
 
             existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Jira")
@@ -766,9 +766,29 @@ def jira_call_create_ticket():
                         "patch_priority":result["patch_priority"]
                         }
                     
-                    vulnerability_description = result['description']
+                    vulnerability_description = result['description'] if result['description'] is not None else "Description not added"
+
                     workstations = assets['workstations']
+
+                    def convert_none_workstations(data):
+                        for workstation in workstations:
+                            for key, value in workstation.items():
+                                if value is None:
+                                    workstation[key]="NA"
+                        return data
+
+                    workstations = convert_none_workstations(workstations)
+
                     servers = assets['servers']
+
+                    def convert_none_servers(data):
+                        for server in servers:
+                            for key, value in server.items():
+                                if value is None:
+                                    server[key]="NA"
+                        return data
+
+                    servers = convert_none_servers(servers)
 
                     listOfDetection = [detectionSummaryObj]
 
@@ -781,20 +801,57 @@ def jira_call_create_ticket():
                     
                     listOfDetection = convert_datetime_to_string(listOfDetection)
 
-                    listOfRemediation = [remediationObj]
-                    allExploits = exploits
-                    allPatches = patches            
+                    for detection in listOfDetection:
+                        for key, value in detection.items():
+                            if value is None:
+                                detection[key] = "NA"
 
+                    listOfRemediation = [remediationObj]
+
+                    def convert_none(data):
+                        for remediation in listOfRemediation:
+                            for key, value in remediation.items():
+                                if value is None:
+                                    remediation[key]="NA"
+                        return data
+
+                    listOfRemediation = convert_none(listOfRemediation)
+
+                    allExploits = exploits
+                    def convert_none_for_exploits(data):
+                        for exploit in allExploits:
+                            for key, value in exploit.items():
+                                if value is None:
+                                    exploit[key]="NA"
+                        return data
+                    allExploits = convert_none_for_exploits(allExploits)
+                    allPatches = [
+                        {
+                            **patch,
+                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
+                        } for patch in patches
+                    ]
+
+
+                    def convert_none_for_patches(data):
+                        for patch in allPatches:
+                            for key, value in patch.items():
+                                if value is None:
+                                    patch[key]="NA"
+                        return data
+                    allPatches = convert_none_for_patches(allPatches)
+                    
                     username = "nihar.m@secqureone.com"
                     password = ticketing_tool.get("key")
 
+                    print(vul_id)
 
                     combined_data = {
                         "fields": {
                             "project": {
                                 "key": "SCRUM"
                             },
-                            "summary": "Dynamic Issue Summary",
+                            "summary": result['name'],
                             "description": {
                                 "version": 1,
                                 "type": "doc",
@@ -804,7 +861,7 @@ def jira_call_create_ticket():
                                         "content": [
                                             {
                                                 "type": "text",
-                                                "text": "Dynamic issue description based on provided data."
+                                                "text": vulnerability_description
                                             }
                                         ]
                                     },
@@ -876,42 +933,6 @@ def jira_call_create_ticket():
                                             {
                                                 "type": "tableRow",
                                                 "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
-                                                    ]
-                                                }
-                                                for ws in workstations
-                                            ],
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": srv["host_name"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": srv["ip_address"]}]}]}
-                                                    ]
-                                                }
-                                                for srv in servers
-                                            ]
-                                        ]
-                                    },
-                                    {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
-                                        "content": [
-                                            {
-                                                "type": "tableRow",
-                                                "content": [
                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
@@ -965,7 +986,62 @@ def jira_call_create_ticket():
                                                 for patch in allPatches
                                             ]
                                         ]
-                                    }
+                                    },
+
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
+                                                    ]
+                                                }
+                                                for ws in workstations
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        "type": "table",
+                                        "attrs": {
+                                            "isNumberColumnEnabled": False,
+                                            "layout": "default"
+                                        },
+                                        "content": [
+                                            {
+                                                "type": "tableRow",
+                                                "content": [
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
+                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
+                                                ]
+                                            },
+                                            *[
+                                                {
+                                                    "type": "tableRow",
+                                                    "content": [
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ser["host_name"]}]}]},
+                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ser["ip_address"]}]}]}
+                                                    ]
+                                                }
+                                                for ser in servers
+                                            ]
+                                        ]
+                                    },
+                                    
+                                    
                                 ]
                             },
                             "issuetype": {
@@ -981,13 +1057,28 @@ def jira_call_create_ticket():
                         }
                     }
 
+
+
                     headers = {
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {jira_key}"
                     }
 
 
-                    response = requests.post(jira_url, data = json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                    try:
+                        response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                        response.raise_for_status()
+                    except requests.exceptions.HTTPError as http_err:
+                        print(f"HTTP error occurred: {http_err}")
+                    except requests.exceptions.ConnectionError as conn_err:
+                        print(f"Connection error occurred: {conn_err}")
+                    except requests.exceptions.Timeout as timeout_err:
+                        print(f"Timeout error occurred: {timeout_err}")
+                    except requests.exceptions.RequestException as req_err:
+                        print(f"An error occurred: {req_err}")
+                    else:
+                        print(f"Success! Response status code: {response.status_code}")
+                        print(f"Response content: {response.content}")
                     
 
 
