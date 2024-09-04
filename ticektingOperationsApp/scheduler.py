@@ -865,183 +865,324 @@ def jira_call_create_ticket():
                                             }
                                         ]
                                     },
+                                    # Detection Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
-                                                    ]
-                                                }
-                                                for det in listOfDetection
-                                            ]
+                                                "type": "text",
+                                                "text": "Detection Summary:"
+                                            }
                                         ]
                                     },
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
+                                                            ]
+                                                        }
+                                                        for det in listOfDetection
+                                                    ]
+                                                ]
+                                            }
+                                        ] if listOfDetection else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No detection data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ),
+                                    # Remediation Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Patch"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Workaround"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Preventive Measure"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
-                                                    ]
-                                                }
-                                                for rem in listOfRemediation
-                                            ]
+                                                "type": "text",
+                                                "text": "Remediation:"
+                                            }
                                         ]
                                     },
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Patch"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Workaround"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Preventive Measure"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
+                                                            ]
+                                                        }
+                                                        for rem in listOfRemediation
+                                                    ]
+                                                ]
+                                            }
+                                        ] if listOfRemediation else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No remediation data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ),
+                                    # Exploits Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dependency"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["name"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["description"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["complexity"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["dependency"]}]}]}
-                                                    ]
-                                                }
-                                                for exp in allExploits
-                                            ]
+                                                "type": "text",
+                                                "text": "Exploits Table:"
+                                            }
                                         ]
                                     },
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dependency"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["name"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["description"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["complexity"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["dependency"]}]}]}
+                                                            ]
+                                                        }
+                                                        for exp in allExploits
+                                                    ]
+                                                ]
+                                            }
+                                        ] if allExploits else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No exploit data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ),
+                                    # Patch Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Solution"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "URL"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Type"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "OS"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["solution"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["description"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["complexity"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["url"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["type"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["os"]}]}]}
-                                                    ]
-                                                }
-                                                for patch in allPatches
-                                            ]
+                                                "type": "text",
+                                                "text": "Patch(es):"
+                                            }
                                         ]
                                     },
-
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Solution"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "URL"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Type"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "OS"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["solution"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["description"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["complexity"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["url"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["type"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["os"]}]}]}
+                                                            ]
+                                                        }
+                                                        for patch in allPatches
+                                                    ]
+                                                ]
+                                            }
+                                        ] if allPatches else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No patch data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ),
+                                    # Workstations Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
-                                                    ]
-                                                }
-                                                for ws in workstations
-                                            ]
+                                                "type": "text",
+                                                "text": "Workstations:"
+                                            }
                                         ]
                                     },
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation Name"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation IP"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
+                                                            ]
+                                                        }
+                                                        for ws in workstations
+                                                    ]
+                                                ]
+                                            }
+                                        ] if workstations else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No workstation data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    ),
+                                    # Servers Summary section
                                     {
-                                        "type": "table",
-                                        "attrs": {
-                                            "isNumberColumnEnabled": False,
-                                            "layout": "default"
-                                        },
+                                        "type": "paragraph",
                                         "content": [
                                             {
-                                                "type": "tableRow",
-                                                "content": [
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Host Name"}]}]},
-                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "IP Address"}]}]}
-                                                ]
-                                            },
-                                            *[
-                                                {
-                                                    "type": "tableRow",
-                                                    "content": [
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ser["host_name"]}]}]},
-                                                        {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ser["ip_address"]}]}]}
-                                                    ]
-                                                }
-                                                for ser in servers
-                                            ]
+                                                "type": "text",
+                                                "text": "Servers:"
+                                            }
                                         ]
                                     },
-                                    
-                                    
+                                    *(
+                                        [
+                                            {
+                                                "type": "table",
+                                                "attrs": {
+                                                    "isNumberColumnEnabled": False,
+                                                    "layout": "default"
+                                                },
+                                                "content": [
+                                                    {
+                                                        "type": "tableRow",
+                                                        "content": [
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server Name"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server IP"}]}]}
+                                                        ]
+                                                    },
+                                                    *[
+                                                        {
+                                                            "type": "tableRow",
+                                                            "content": [
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["host_name"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["ip_address"]}]}]}
+                                                            ]
+                                                        }
+                                                        for svr in servers
+                                                    ]
+                                                ]
+                                            }
+                                        ] if servers else [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "No server data available."
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    )
                                 ]
                             },
                             "issuetype": {
@@ -1056,6 +1197,7 @@ def jira_call_create_ticket():
                             ]
                         }
                     }
+
 
 
 
