@@ -607,15 +607,6 @@ def updateExploitsAndPatchesForFreshservice():
                     else:
                         print(f"Failed to create ticket for vulnerability {url} {vulnerabilityId}: {response.json()}")
 
-
-                    
-
-
-
-
-
-        print()
-
 def jira_call_create_ticket():
     connection = get_connection()
     if not connection or not connection.is_connected():
