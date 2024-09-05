@@ -73,14 +73,9 @@ def delete_all_tickets_freshservice(request):
         api_key = account["api_key"]
         result, status_code = delete_tickets_for_account(domain, api_key)
         results.append({"domain": domain, "result": result, "status_code": status_code})
-
-    error_messages = [result["error"] for result in results if "error" in result["result"]]
-    success_messages = [result["result"]["message"] for result in results if "message" in result["result"]]
-
-    if error_messages:
-        return JsonResponse({"errors": error_messages}, status=500)
+        return JsonResponse({"message": "all freshservice tickets deleted"}, status=500)
     
-    return JsonResponse({"messages": success_messages}, status=200)
+    return JsonResponse({"messages": "success_messages"}, status=200)
 
 @csrf_exempt
 def createTicketManuallyJira(request):

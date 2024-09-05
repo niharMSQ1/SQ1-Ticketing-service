@@ -1,8 +1,9 @@
-from .models import Vulnerabilities, TicketingServiceDetails, TICKET_TYPE_CHOICES
+from .models import Vulnerabilities, TicketingServiceDetails, TICKET_TYPE_CHOICES, TICKET_REFERENCE_CHOICES
 
 def save_vulnerability(vul_id, organization_id, ticket_id):
     Vulnerabilities.objects.create(
         vulId=vul_id,
+        cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Freshservice'][0] + "-" +str(vul_id),
         ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Freshservice'][0],
         organizationId=organization_id,
         createdTicketId=ticket_id
@@ -14,6 +15,7 @@ def save_ticket_details(ticket_data,vul_id,exploitIdList,patchesIdList):
         patchesList = patchesIdList,
         sq1VulId = vul_id,
         ticketId=ticket_data.get("id", None),
+        cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Freshservice'][0] + "-" +str(vul_id), 
         ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Freshservice'][0],
         plannedStartDate=ticket_data.get("planned_start_date") or None,
         plannedEffort=ticket_data.get("planned_end_date") or None,

@@ -31,15 +31,22 @@ TICKET_TYPE_CHOICES = [
     ('freshservice', 'Freshservice')
 ]
 
+TICKET_REFERENCE_CHOICES = [
+    ('JR', 'JIRA'),
+    ('FR', 'Freshservice')
+]
+
 class Vulnerabilities(models.Model):
     id = models.AutoField(primary_key=True)
     vulId = models.IntegerField()
+    cVulId =models.CharField(max_length=255)
     createdTicketId = models.CharField(max_length=255, default=None)
     organizationId = models.IntegerField(default=None)
     ticketServicePlatform = models.CharField(max_length=20, choices=TICKET_TYPE_CHOICES, default="")
 
 class TicketingServiceDetails(models.Model):
     sq1VulId = models.IntegerField(null=True)
+    cVulId =models.CharField(max_length=255)
     ticketId = models.IntegerField(null=True)
     ticketServicePlatform = models.CharField(max_length=20, choices=TICKET_TYPE_CHOICES, default="", null=True)
     plannedStartDate = models.DateTimeField(null=True)
@@ -59,7 +66,7 @@ class TicketingServiceDetails(models.Model):
     createdAt = models.DateTimeField(null=True)
     updatedAt = models.DateTimeField(null=True)
     workSpaceId = models.IntegerField(null=True)
-    requestedForId = models.BigIntegerField(validators=[validate_300_digit_max])
+    requestedForId = models.BigIntegerField(validators=[validate_300_digit_max], null=True)
     toEmails = models.EmailField(null=True)
     type = models.CharField(max_length=255, null=True)
     description = models.TextField(null=True)
