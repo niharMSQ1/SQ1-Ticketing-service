@@ -404,7 +404,10 @@ def updateExploitsAndPatchesForFreshservice():
             }
 
             try:
-                response = requests.get(f"{url}/api/v2/tickets", headers=headers)
+                params = {
+                    "per_page": 100
+                }
+                response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
 
                 if response.status_code == 200:
                     tickets = response.json().get('tickets', [])
@@ -413,13 +416,11 @@ def updateExploitsAndPatchesForFreshservice():
                     print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
             except requests.RequestException as e:
                 print(f"Request failed for {url}: {str(e)}")
-        
-
         for ticket in all_tickets:
             checkTicketId = (TicketingServiceDetails.objects.filter(ticketId = ticket.get("id"))).exists()
             if checkTicketId == True:
                 vulnerabilityId = (TicketingServiceDetails.objects.get(ticketId = ticket.get("id"))).sq1VulId
-                organizationId = (Vulnerabilities.objects.get(vulId = vulnerabilityId)).organizationId
+                organizationId = (Vulnerabilities.objects.get(vulId = vulnerabilityId, ticketServicePlatform="freshservice")).organizationId
 
                 ticketObj = TicketingServiceDetails.objects.get(ticketId =  ticket.get("id"))
                 exploitsList = ast.literal_eval(ticketObj.exploitsList)
@@ -434,14 +435,14 @@ def updateExploitsAndPatchesForFreshservice():
                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                     newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                     if newPatchIds:
-                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
+                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
                         existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
                         newPatchesList = existingPatchIds + newPatchIds
                         ticket_service_details.patchesList = str(newPatchesList)
                         ticket_service_details.save()
                     newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
                     if newExploitIds:
-                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
+                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
                         existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
                         newExploitsList = existingExploitIds + newExploitIds
                         ticket_service_details.exploitsList = str(newExploitsList)
@@ -583,9 +584,10 @@ def updateExploitsAndPatchesForFreshservice():
                     patch_table_html = render_to_string('patch_table.html', patchContext)
                     workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
                     servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
+                    vuldesc = result[0].get('description') if result[0].get('description') else "Description not added"
 
                     combined_data = {
-                            "description": result[0].get('description').replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "description": vuldesc + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result[0].get('name'),
                             "email": "ram@freshservice.com",
                             "priority": 4,
@@ -1971,7 +1973,10 @@ def updateExploitsAndPatchesForJira():
             try:
                 username = "nihar.m@secqureone.com"
                 password = key
-                response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password))
+                params={
+                        "maxResults": 1000
+                    }
+                response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
                 if response.status_code == 200:
                     for response in response.json()['issues']:
                         issue_key = response.get("key")
@@ -2001,14 +2006,14 @@ def updateExploitsAndPatchesForJira():
                             if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                                 newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                                 if newPatchIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
+                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
                                     existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
                                     newPatchesList = existingPatchIds + newPatchIds
                                     ticket_service_details.patchesList = str(newPatchesList)
                                     ticket_service_details.save()
                                 newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
                                 if newExploitIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId)
+                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
                                     existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
                                     newExploitsList = existingExploitIds + newExploitIds
                                     ticket_service_details.exploitsList = str(newExploitsList)
@@ -2530,6 +2535,80 @@ def updateExploitsAndPatchesForJira():
 
             except Exception as e:
                 return JsonResponse({})
+            
+def changeVulnerabilityStatusForFreshService():
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    
+    with connection.cursor(dictionary=True) as cursor:
+        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Freshservice'")
+        ticketing_tools = cursor.fetchall()
+
+        all_tickets = []
+
+        for tool in ticketing_tools:
+            url = tool['url']
+            key = tool['key']
+            
+            headers = {
+                "Content-Type":"application/json",
+                "Authorization": f"Basic {key}"
+            }
+
+            try:
+                params = {
+                    "per_page": 100
+                }
+                response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
+
+                if response.status_code == 200:
+                    tickets = response.json().get('tickets', [])
+                    all_tickets.extend(tickets)
+                    for ticket in all_tickets:
+                        if ticket.get("status") ==4:
+                            vulId = (Vulnerabilities.objects.get(createdTicketId = ticket.get("id"))).vulId
+                            cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
+                else:
+                    print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
+            except requests.RequestException as e:
+                print(f"Request failed for {url}: {str(e)}")
+            
+def changeVulnerabilityStatusForJira():
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    
+    with connection.cursor(dictionary=True) as cursor:
+        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'JIRA'")
+        ticketing_tools = cursor.fetchall()
+
+        all_tickets = []
+
+        for tool in ticketing_tools:
+            url = tool['url']
+            key = tool['key']
+
+            headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {key}"
+                    }
+            
+            try:
+                username = "nihar.m@secqureone.com"
+                password = key
+                params={
+                        "maxResults": 1000
+                    }
+                response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
+                if response.status_code == 200:
+                    for response in response.json()['issues']:
+                        if response['fields']['status']['name'] == "Completed":
+                            issueId = int(((response.get("key")).split('-')[1]))
+                            vulId = (Vulnerabilities.objects.get(createdTicketId = issueId)).vulId
+                            cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
+            except Exception as e:
+                print(e)
 
 def start_scheduler():
     scheduler = BackgroundScheduler()

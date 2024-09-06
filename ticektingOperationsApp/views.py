@@ -18,8 +18,8 @@ def test(request):
 
 FRESHSERVICE_ACCOUNTS = [
     {
-        "domain": "sq1vinay.freshservice.com",
-        "api_key": "eE4xcmdQMFlobkZyV1JZdmV2a1Q=	"
+        "domain": "sq1-helpdesk.freshservice.com",
+        "api_key": "WDVZWlVVUW4xcWFWbThSR0xmRA=="
     },
     {
         "domain": "sq1.freshservice.com",
@@ -136,3 +136,23 @@ def updateJiraPatchesAndExploits(request):
     return JsonResponse({
         "message":"sab changa si"
     })
+
+@csrf_exempt
+def chechStatusForFreshServicesOrgs(request):
+    from .scheduler import changeVulnerabilityStatusForFreshService
+    req = changeVulnerabilityStatusForFreshService()
+    return JsonResponse(
+        {
+            "message":"sab changa si"
+        }
+    )
+
+@csrf_exempt
+def checkStatusForJiraOrgs(request):
+    from .scheduler import changeVulnerabilityStatusForJira
+    req =changeVulnerabilityStatusForJira()
+    return JsonResponse(
+        {
+            "message":"sab changa si"
+        }
+    )
