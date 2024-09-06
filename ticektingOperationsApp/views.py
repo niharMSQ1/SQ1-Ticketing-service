@@ -128,3 +128,11 @@ def delete_jira_issues(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def updateJiraPatchesAndExploits(request):
+    from .scheduler import updateExploitsAndPatchesForJira
+    req = updateExploitsAndPatchesForJira()
+    return JsonResponse({
+        "message":"sab changa si"
+    })

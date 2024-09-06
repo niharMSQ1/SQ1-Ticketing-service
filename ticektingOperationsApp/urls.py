@@ -7,7 +7,8 @@ urlpatterns = [
     path('create-ticket-manually-freshservice/', createTicketManuallyForFreshservice),
     path('create-ticket-manually-jira/', createTicketManuallyJira),
     path('update-ticket-manually-freshservice/', updateTicketManuallyForFreshService),
-    path('delete_jira_issues/',delete_jira_issues)
+    path('delete_jira_issues/',delete_jira_issues),
+    path('update-jira-exploits-patches/', updateJiraPatchesAndExploits)
 ]
 
 
