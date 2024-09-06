@@ -3,6 +3,7 @@ import json
 import requests
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from datetime import datetime
@@ -2612,7 +2613,11 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    # scheduler.add_job(freshservice_call_create_ticket, IntervalTrigger(minutes=90))
-    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, IntervalTrigger(minutes=180))
-    # scheduler.add_job(jira_call_create_ticket, IntervalTrigger(minutes=180))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=8, minute=30))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=10, minute=0))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=14, minute=0))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=14, minute=30))
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=16, minute=0)) 
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=16, minute=30))
+    
     scheduler.start()
