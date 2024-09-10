@@ -2613,12 +2613,13 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=4, minute=30))
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=6, minute=30))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=8, minute=30))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=10, minute=30))
-    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=11, minute=0))
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=11, minute=30))
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=11, minute=0))  # 4:30 PM IST
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=11, minute=15))  # 4:45 PM IST
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=11, minute=30))  # 5:00 PM IST
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=11, minute=45))  # 5:15 PM IST
+    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=12, minute=0))  # 5:30 PM IST
+    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=12, minute=15))  # 5:45 PM IST
+
 
     scheduler.start()
 
