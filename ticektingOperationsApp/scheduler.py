@@ -1,6 +1,9 @@
 import ast
 import json
 import requests
+import logging
+import threading
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -16,204 +19,36 @@ from django.template.loader import render_to_string
 
 from requests.auth import HTTPBasicAuth
 
+from pytz import timezone
+
 from .dbUtils import get_connection
 from .models import *
 from .ticketing_service import save_ticket_details, save_vulnerability
 
+# Configure logging
+logging.basicConfig()
+logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+
+lock = threading.Lock() # globally defined
 
 def freshservice_call_create_ticket():
-    connection = get_connection()
-    if not connection or not connection.is_connected():
-        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    with lock:    
+        connection = get_connection()
+        if not connection or not connection.is_connected():
+            return JsonResponse({"error": "Failed to connect to the database"}, status=500)
 
-    try:
-        with connection.cursor(dictionary=True) as cursor:
-            cursor.execute("SELECT * FROM vulnerabilities;")
-            results = cursor.fetchall()
-            existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Freshservice")
-            
-            if len(existing_vul_ids) == 0:
-                for result in results:
-                    vul_id = result.get("id")
-                    print(vul_id)
-                    organization_id = result.get("organization_id")
-
-                    if vul_id not in existing_vul_ids:
-
-                        cursor.execute("""
-                        SELECT assetable_type, assetable_id
-                        FROM assetables
-                        WHERE vulnerabilities_id = %s
-                    """, (vul_id,))
-                    assetables_results = cursor.fetchall()
-
-                    assets = {
-                        "servers": [],
-                        "workstations": []
-                    }
-                    ass_type = []
-                    for i in assetables_results:
-                        ass_type.append(i['assetable_type'])
-
-                    ass_id = []
-                    for i in assetables_results:
-                        ass_id.append(i['assetable_id'])
-                    
-                    index = 0
-                    for i in ass_type:
-                        j = ass_id[index]
-                        if i == 'App\\Models\\Workstations':
-                            cursor.execute("""
-                            SELECT host_name, ip_address
-                            FROM workstations
-                            WHERE id = %s AND organization_id = %s
-                            """, (j, organization_id))
-                            workstation = cursor.fetchone()
-                            if workstation:
-                                assets["workstations"].append(workstation)
-                            index = index+1
-                        
-    
-                        if i == 'App\\Models\\Servers':
-                            cursor.execute("""
-                            SELECT host_name, ip_address
-                            FROM workstations
-                            WHERE id = %s AND organization_id = %s
-                            """, (j, organization_id))
-                            server = cursor.fetchone()
-                            if server:
-                                assets["servers"].append(server)
-                            index = index+1
-
-
-                    mapped_priority = None
-
-                    risk = float(result.get("risk"))
-
-                    if 9.0 <= risk <= 10.0:
-                        mapped_priority = 4
-                    elif 7.0 <= risk <= 8.9:
-                        mapped_priority = 3
-                    elif 4.0 <= risk <= 6.9:
-                        mapped_priority = 2
-                    elif 0.1 <= risk <= 3.9:
-                        mapped_priority = 1
-
-                    cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
-                    exploits = cursor.fetchall()
-                    exploitIdList = []
-                    if exploits !=[]:
-                        for exploit in exploits:
-                            exploitIdList.append(exploit.get("id"))
-
-                    cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vul_id,))
-                    patches = cursor.fetchall()
-                    patchesIdList = []
-                    if patches !=[]:
-                        for patch in patches:
-                            patchesIdList.append(patch.get("id"))
-
-                    cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'Freshservice'", (organization_id,))
-                    ticketing_tool = cursor.fetchone()
-
-                    if not ticketing_tool:
-                        continue
-
-                    freshservice_url = f"{ticketing_tool.get('url')}/api/v2/tickets"
-                    freshservice_key = ticketing_tool.get("key")
-
-                    resultCVEs = json.loads(result.get("CVEs", {}))
-                    if isinstance(resultCVEs, dict):
-                        cve_list = resultCVEs.get("cves", [])
-                    else:
-                        cve_list = []
-                    cve_string = ", ".join(cve_list)
-                    context = {
-                        'result': {
-                            'CVEs': cve_string,
-                            'severity': result.get('severity'),
-                            'first_seen': result.get('first_seen'),
-                            'last_identified_on': result.get('last_identified_on'),
-                            'patch_priority': result.get('patch_priority'),
-                        }
-                    }
-
-                    detection_summary_table = render_to_string('detection_summary_table.html', context)
-                    remediation_table = render_to_string('remediation_table.html', {'result': result}) if result else render_to_string('remediation_table.html', {'result': None})
-                    exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits}) if exploits else render_to_string('exploits_table.html', {'exploits': None})
-
-                    if patches:
-                        patch_data = []
-                        for patch in patches:
-                            patchSolution = patch.get("solution", "")
-                            patchDescription = patch.get("description", "")
-                            patchComplexity = patch.get("complexity", "")
-                            patchType = patch.get("type", "")
-                            os_list = json.loads(patch.get("os", "[]"))
-                            patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
-
-                            patch_data.append({
-                                'solution': patchSolution,
-                                'description': patchDescription,
-                                'complexity': patchComplexity,
-                                'type': patchType,
-                                'os': patchOs,
-                                'url': patch.get("url", "")
-                            })
-
-                        patchContext = {
-                            'patches': patch_data
-                        }
-                    else:
-                        patchContext = {
-                            'patches': []
-                        }
-
-                    patch_table_html = render_to_string('patch_table.html', patchContext)
-                    workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
-                    servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
-
-                    description = result['description'] if result['description'] is not None else "Description not present"
-
-                    combined_data = {
-                        "description": description+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
-                        "subject": result.get("name"),
-                        "email": "ram@freshservice.com",
-                        "priority": 4,
-                        "status": 2,
-                        "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
-                        "workspace_id": 2,
-                        "urgency": 3,
-                    }
-
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Basic {freshservice_key}"
-                    }
-                    response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                    if response.status_code == 201:
-                        ticket_id = response.json()['ticket'].get("id")
-                        ticket_data = response.json().get("ticket", {})
-                        save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
-                        save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
-                    else:
-                        print(f"Failed to create ticket for vulnerability {freshservice_url} {vul_id}: {response.json()}")
-
-                return JsonResponse({"message": f"tickets created successfully."}, status=200)
-
-            else:
-                latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
-
-                if results[-1]["id"] == latest_existing_id:
-                    return JsonResponse({"message": "Nothing to add"}, status=200)
+        try:
+            with connection.cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT * FROM vulnerabilities;")
+                results = cursor.fetchall()
+                existing_vul_ids = Vulnerabilities.objects.filter(ticketServicePlatform="Freshservice")
                 
-                elif results[-1]["id"] > latest_existing_id:
-                    new_vulnerabilities = [vul for vul in results if vul["id"] > latest_existing_id]
-
-                    for result in new_vulnerabilities:
+                if len(existing_vul_ids) == 0:
+                    for result in results:
                         vul_id = result.get("id")
                         organization_id = result.get("organization_id")
-                        if vul_id not in list(Vulnerabilities.objects.values_list('vulId', flat=True)):
+
+                        if vul_id not in existing_vul_ids:
 
                             cursor.execute("""
                             SELECT assetable_type, assetable_id
@@ -259,6 +94,7 @@ def freshservice_call_create_ticket():
                                 if server:
                                     assets["servers"].append(server)
                                 index = index+1
+
 
                         mapped_priority = None
 
@@ -347,42 +183,219 @@ def freshservice_call_create_ticket():
                         workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
                         servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
+                        description = result['description'] if result['description'] is not None else "Description not present"
 
                         combined_data = {
-                            "description": result.get("description", "").replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "description": description+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
                             "email": "ram@freshservice.com",
                             "priority": 4,
                             "status": 2,
                             "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
                             "workspace_id": 2,
-                            "urgency": mapped_priority,
+                            "urgency": 3,
                         }
 
                         headers = {
                             "Content-Type": "application/json",
                             "Authorization": f"Basic {freshservice_key}"
                         }
-
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-
+                        time.sleep(0.07)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
                             save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
                             save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
-                            print(f"Ticket created successfully for vulnerabilities")
                         else:
-                            print(f"Failed to create ticket for vulnerability {vul_id}: {response.json()}")
+                            print(f"Failed to create ticket for vulnerability {freshservice_url} {vul_id}: {response.json()}")
 
-                    return JsonResponse({"message": "tickets created successfully."}, status=200)
+                    return JsonResponse({"message": f"tickets created successfully."}, status=200)
 
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+                else:
+                    latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
 
-    finally:
-        if connection.is_connected():
-            connection.close()
+                    if results[-1]["id"] == latest_existing_id:
+                        return JsonResponse({"message": "Nothing to add"}, status=200)
+                    
+                    elif results[-1]["id"] > latest_existing_id:
+                        new_vulnerabilities = [vul for vul in results if vul["id"] > latest_existing_id]
+
+                        for result in new_vulnerabilities:
+                            vul_id = result.get("id")
+                            organization_id = result.get("organization_id")
+                            if vul_id not in list(Vulnerabilities.objects.values_list('vulId', flat=True)):
+
+                                cursor.execute("""
+                                SELECT assetable_type, assetable_id
+                                FROM assetables
+                                WHERE vulnerabilities_id = %s
+                            """, (vul_id,))
+                            assetables_results = cursor.fetchall()
+
+                            assets = {
+                                "servers": [],
+                                "workstations": []
+                            }
+                            ass_type = []
+                            for i in assetables_results:
+                                ass_type.append(i['assetable_type'])
+
+                            ass_id = []
+                            for i in assetables_results:
+                                ass_id.append(i['assetable_id'])
+                            
+                            index = 0
+                            for i in ass_type:
+                                j = ass_id[index]
+                                if i == 'App\\Models\\Workstations':
+                                    cursor.execute("""
+                                    SELECT host_name, ip_address
+                                    FROM workstations
+                                    WHERE id = %s AND organization_id = %s
+                                    """, (j, organization_id))
+                                    workstation = cursor.fetchone()
+                                    if workstation:
+                                        assets["workstations"].append(workstation)
+                                    index = index+1
+                                
+            
+                                if i == 'App\\Models\\Servers':
+                                    cursor.execute("""
+                                    SELECT host_name, ip_address
+                                    FROM workstations
+                                    WHERE id = %s AND organization_id = %s
+                                    """, (j, organization_id))
+                                    server = cursor.fetchone()
+                                    if server:
+                                        assets["servers"].append(server)
+                                    index = index+1
+
+                            mapped_priority = None
+
+                            risk = float(result.get("risk"))
+
+                            if 9.0 <= risk <= 10.0:
+                                mapped_priority = 4
+                            elif 7.0 <= risk <= 8.9:
+                                mapped_priority = 3
+                            elif 4.0 <= risk <= 6.9:
+                                mapped_priority = 2
+                            elif 0.1 <= risk <= 3.9:
+                                mapped_priority = 1
+
+                            cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
+                            exploits = cursor.fetchall()
+                            exploitIdList = []
+                            if exploits !=[]:
+                                for exploit in exploits:
+                                    exploitIdList.append(exploit.get("id"))
+
+                            cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vul_id,))
+                            patches = cursor.fetchall()
+                            patchesIdList = []
+                            if patches !=[]:
+                                for patch in patches:
+                                    patchesIdList.append(patch.get("id"))
+
+                            cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'Freshservice'", (organization_id,))
+                            ticketing_tool = cursor.fetchone()
+
+                            if not ticketing_tool:
+                                continue
+
+                            freshservice_url = f"{ticketing_tool.get('url')}/api/v2/tickets"
+                            freshservice_key = ticketing_tool.get("key")
+
+                            resultCVEs = json.loads(result.get("CVEs", {}))
+                            if isinstance(resultCVEs, dict):
+                                cve_list = resultCVEs.get("cves", [])
+                            else:
+                                cve_list = []
+                            cve_string = ", ".join(cve_list)
+                            context = {
+                                'result': {
+                                    'CVEs': cve_string,
+                                    'severity': result.get('severity'),
+                                    'first_seen': result.get('first_seen'),
+                                    'last_identified_on': result.get('last_identified_on'),
+                                    'patch_priority': result.get('patch_priority'),
+                                }
+                            }
+
+                            detection_summary_table = render_to_string('detection_summary_table.html', context)
+                            remediation_table = render_to_string('remediation_table.html', {'result': result}) if result else render_to_string('remediation_table.html', {'result': None})
+                            exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits}) if exploits else render_to_string('exploits_table.html', {'exploits': None})
+
+                            if patches:
+                                patch_data = []
+                                for patch in patches:
+                                    patchSolution = patch.get("solution", "")
+                                    patchDescription = patch.get("description", "")
+                                    patchComplexity = patch.get("complexity", "")
+                                    patchType = patch.get("type", "")
+                                    os_list = json.loads(patch.get("os", "[]"))
+                                    patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
+
+                                    patch_data.append({
+                                        'solution': patchSolution,
+                                        'description': patchDescription,
+                                        'complexity': patchComplexity,
+                                        'type': patchType,
+                                        'os': patchOs,
+                                        'url': patch.get("url", "")
+                                    })
+
+                                patchContext = {
+                                    'patches': patch_data
+                                }
+                            else:
+                                patchContext = {
+                                    'patches': []
+                                }
+
+                            patch_table_html = render_to_string('patch_table.html', patchContext)
+                            workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
+                            servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
+
+
+                            combined_data = {
+                                "description": result.get("description", "").replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "subject": result.get("name"),
+                                "email": "ram@freshservice.com",
+                                "priority": 4,
+                                "status": 2,
+                                "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+                                "workspace_id": 2,
+                                "urgency": mapped_priority,
+                            }
+
+                            headers = {
+                                "Content-Type": "application/json",
+                                "Authorization": f"Basic {freshservice_key}"
+                            }
+
+                            response = requests.post(freshservice_url, json=combined_data, headers=headers)
+                            time.sleep(0.07)
+
+                            if response.status_code == 201:
+                                ticket_id = response.json()['ticket'].get("id")
+                                ticket_data = response.json().get("ticket", {})
+                                save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
+                                save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
+                                print(f"Ticket created successfully for vulnerabilities")
+                            else:
+                                print(f"Failed to create ticket for vulnerability {vul_id}: {response.json()}")
+
+                        return JsonResponse({"message": "tickets created successfully."}, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+        finally:
+            if connection.is_connected():
+                connection.close()
+                pass
 
 def updateExploitsAndPatchesForFreshservice():
     connection = get_connection()
@@ -432,7 +445,6 @@ def updateExploitsAndPatchesForFreshservice():
 
                 cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
                 patches = cursor.fetchall()
-                print()
                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                     newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                     if newPatchIds:
@@ -603,13 +615,16 @@ def updateExploitsAndPatchesForFreshservice():
                         "Authorization": f"Basic {key}"
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
+                    time.sleep(0.07)
                     if response.status_code == 201:
                         ticket_id = response.json()['ticket'].get("id")
                         ticket_data = response.json().get("ticket", {})
                         # save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
                         # save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
                     else:
-                        print(f"Failed to create ticket for vulnerability {url} {vulnerabilityId}: {response.json()}")
+                        print("some error occured")
+                else:
+                    print("Tickets updated for the ids which had new exploits and patches")
 
 def jira_call_create_ticket():
     connection = get_connection()
@@ -1210,6 +1225,7 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                        time.sleep(0.07)
                         response.raise_for_status()
                         Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -1872,6 +1888,7 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                            time.sleep(0.07)
                             response.raise_for_status()
                             Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -2049,9 +2066,6 @@ def updateExploitsAndPatchesForJira():
                                     for key, value in detection.items():
                                         if value is None:
                                             detection[key] = "NA"
-
-
-                                print()
 
                                 # Remediation Summary
                                 remediationObj = {
@@ -2527,7 +2541,7 @@ def updateExploitsAndPatchesForJira():
                                 }
 
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                            
+                                time.sleep(0.07)
                                 if response.status_code == 204:
                                     ticketUrl = response.url
                                 
@@ -2613,13 +2627,21 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=11, minute=0))  # 4:30 PM IST
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=11, minute=15))  # 4:45 PM IST
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=11, minute=30))  # 5:00 PM IST
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=11, minute=45))  # 5:15 PM IST
-    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=12, minute=0))  # 5:30 PM IST
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=12, minute=15))  # 5:45 PM IST
 
+    # Define IST timezone
+    ist = timezone('Asia/Kolkata')
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=17, minute=15, timezone=ist))
+
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=17, minute=20, timezone=ist))
+
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=17, minute=25, timezone=ist))
+
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=17, minute=30, timezone=ist))
+
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=10, minute=40, timezone=ist))
+
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=10, minute=45, timezone=ist))
 
     scheduler.start()
+
 
