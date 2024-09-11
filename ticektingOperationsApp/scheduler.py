@@ -2630,13 +2630,13 @@ def start_scheduler():
 
     # Define IST timezone
     ist = timezone('Asia/Kolkata')
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=3, minute=15, timezone=ist))
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=15, minute=20, timezone=ist))
 
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=3, minute=20, timezone=ist))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=15, minute=25, timezone=ist))
 
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=3, minute=25, timezone=ist))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=15, minute=30, timezone=ist))
 
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=3, minute=30, timezone=ist))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=15, minute=35, timezone=ist))
 
     # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=10, minute=40, timezone=ist))
 
