@@ -2627,21 +2627,14 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-
-    # Define IST timezone
-    ist = timezone('Asia/Kolkata')
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=15, minute=20, timezone=ist))
-
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=15, minute=25, timezone=ist))
-
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=15, minute=30, timezone=ist))
-
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=15, minute=35, timezone=ist))
-
-    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=10, minute=40, timezone=ist))
-
-    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=10, minute=45, timezone=ist))
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=11, minute=30, timezone=utc))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=11, minute=35, timezone=utc))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=11, minute=40, timezone=utc))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=11, minute=45, timezone=utc))
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=11, minute=50, timezone=utc))
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=11, minute=55, timezone=utc))
 
     scheduler.start()
+
 
 
