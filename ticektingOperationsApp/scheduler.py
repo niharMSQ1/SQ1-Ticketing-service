@@ -201,7 +201,7 @@ def freshservice_call_create_ticket():
                             "Authorization": f"Basic {freshservice_key}"
                         }
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                        time.sleep(0.07)
+                        time.sleep(0.5)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
@@ -376,7 +376,7 @@ def freshservice_call_create_ticket():
                             }
 
                             response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                            time.sleep(0.07)
+                            time.sleep(0.5)
 
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
@@ -615,7 +615,7 @@ def updateExploitsAndPatchesForFreshservice():
                         "Authorization": f"Basic {key}"
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
-                    time.sleep(0.07)
+                    time.sleep(0.5)
                     if response.status_code == 201:
                         ticket_id = response.json()['ticket'].get("id")
                         ticket_data = response.json().get("ticket", {})
@@ -1225,7 +1225,7 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        time.sleep(0.07)
+                        time.sleep(0.5)
                         response.raise_for_status()
                         Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -1888,7 +1888,7 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                            time.sleep(0.07)
+                            time.sleep(0.5)
                             response.raise_for_status()
                             Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -2541,7 +2541,7 @@ def updateExploitsAndPatchesForJira():
                                 }
 
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                                time.sleep(0.07)
+                                time.sleep(0.5)
                                 if response.status_code == 204:
                                     ticketUrl = response.url
                                 
@@ -2627,10 +2627,10 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=4, minute=30))  # 10:00 am IST
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=4, minute=35))  # 10:05 am IST
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=4, minute=40))  # 10:10 am IST
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=4, minute=50))  # 10:20 am IST
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=5, minute=0))  # 10:00 am IST
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=5, minute=10))  # 10:05 am IST
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=5, minute=15))  # 10:10 am IST
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=5, minute=30))  # 10:20 am IST
     # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=11, minute=50, timezone=utc))
     # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=11, minute=55, timezone=utc))
 
