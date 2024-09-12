@@ -448,20 +448,20 @@ def updateExploitsAndPatchesForFreshservice():
                 cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
                 patches = cursor.fetchall()
                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                    newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                    if newPatchIds:
-                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                        existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                        newPatchesList = existingPatchIds + newPatchIds
-                        ticket_service_details.patchesList = str(newPatchesList)
-                        ticket_service_details.save()
-                    newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                    if newExploitIds:
-                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                        existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                        newExploitsList = existingExploitIds + newExploitIds
-                        ticket_service_details.exploitsList = str(newExploitsList)
-                        ticket_service_details.save()
+                    # newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                    # if newPatchIds:
+                    #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
+                    #     existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                    #     newPatchesList = existingPatchIds + newPatchIds
+                    #     ticket_service_details.patchesList = str(newPatchesList)
+                    #     ticket_service_details.save()
+                    # newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                    # if newExploitIds:
+                    #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
+                    #     existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                    #     newExploitsList = existingExploitIds + newExploitIds
+                    #     ticket_service_details.exploitsList = str(newExploitsList)
+                    #     ticket_service_details.save()
 
                     cursor.execute(f"""
                     SELECT *
@@ -619,8 +619,20 @@ def updateExploitsAndPatchesForFreshservice():
                     response = requests.put(url, json=combined_data, headers=headers)
                     time.sleep(3)
                     if response.status_code == 201:
-                        ticket_id = response.json()['ticket'].get("id")
-                        ticket_data = response.json().get("ticket", {})
+                        newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                        if newPatchIds:
+                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
+                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                            newPatchesList = existingPatchIds + newPatchIds
+                            ticket_service_details.patchesList = str(newPatchesList)
+                            ticket_service_details.save()
+                        newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                        if newExploitIds:
+                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
+                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                            newExploitsList = existingExploitIds + newExploitIds
+                            ticket_service_details.exploitsList = str(newExploitsList)
+                            ticket_service_details.save()
                     else:
                         print("some error occured")
                 else:
@@ -1936,20 +1948,20 @@ def updateExploitsAndPatchesForJira():
                             vulnerabilityResult = cursor.fetchall()
 
                             if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                                newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                                if newPatchIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
-                                    existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                    newPatchesList = existingPatchIds + newPatchIds
-                                    ticket_service_details.patchesList = str(newPatchesList)
-                                    ticket_service_details.save()
-                                newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                                if newExploitIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
-                                    existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                    newExploitsList = existingExploitIds + newExploitIds
-                                    ticket_service_details.exploitsList = str(newExploitsList)
-                                    ticket_service_details.save()
+                                # newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                # if newPatchIds:
+                                #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
+                                #     existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                #     newPatchesList = existingPatchIds + newPatchIds
+                                #     ticket_service_details.patchesList = str(newPatchesList)
+                                #     ticket_service_details.save()
+                                # newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                # if newExploitIds:
+                                #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
+                                #     existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                #     newExploitsList = existingExploitIds + newExploitIds
+                                #     ticket_service_details.exploitsList = str(newExploitsList)
+                                #     ticket_service_details.save()
 
                                 vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
@@ -2457,7 +2469,20 @@ def updateExploitsAndPatchesForJira():
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
                                 time.sleep(3)
                                 if response.status_code == 204:
-                                    ticketUrl = response.url
+                                    newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                    if newPatchIds:
+                                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
+                                        existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                        newPatchesList = existingPatchIds + newPatchIds
+                                        ticket_service_details.patchesList = str(newPatchesList)
+                                        ticket_service_details.save()
+                                    newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                    if newExploitIds:
+                                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
+                                        existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                        newExploitsList = existingExploitIds + newExploitIds
+                                        ticket_service_details.exploitsList = str(newExploitsList)
+                                        ticket_service_details.save()
                                 
                                 else:
                                     print("Failed to update ticket for vulnerability")
@@ -3339,20 +3364,6 @@ def updateExploitsAndPatchesForTrello():
                             vulnerabilityResult = cursor.fetchall()
 
                             if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                                newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                                if newPatchIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'trello')
-                                    existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                    newPatchesList = existingPatchIds + newPatchIds
-                                    ticket_service_details.patchesList = str(newPatchesList)
-                                    # ticket_service_details.save()
-                                newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                                if newExploitIds:
-                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'trello')
-                                    existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                    newExploitsList = existingExploitIds + newExploitIds
-                                    ticket_service_details.exploitsList = str(newExploitsList)
-                                    # ticket_service_details.save()
 
                                 vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
@@ -3608,7 +3619,21 @@ def updateExploitsAndPatchesForTrello():
                                 
                                 try:
                                     response = requests.put(putUrl, params=query)
-                                    response.raise_for_status()
+                                    if response.status_code==200:
+                                        newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                        if newPatchIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'trello')
+                                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                            newPatchesList = existingPatchIds + newPatchIds
+                                            ticket_service_details.patchesList = str(newPatchesList)
+                                            ticket_service_details.save()
+                                        newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                        if newExploitIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'trello')
+                                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                            newExploitsList = existingExploitIds + newExploitIds
+                                            ticket_service_details.exploitsList = str(newExploitsList)
+                                            ticket_service_details.save()
 
                                 except Exception as e:
                                     print(e)
