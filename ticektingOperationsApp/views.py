@@ -156,3 +156,13 @@ def checkStatusForJiraOrgs(request):
             "message":"sab changa si"
         }
     )
+
+@csrf_exempt
+def cardCreateTrello(request):
+    from .scheduler import createCardInTrello
+    req =createCardInTrello()
+    return JsonResponse(
+        {
+            "message":"sab changa si"
+        }
+    )
