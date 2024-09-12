@@ -3692,25 +3692,23 @@ def start_scheduler():
     scheduler = BackgroundScheduler()
     from apscheduler.triggers.date import DateTrigger
 
-    # Grouping all 'create ticket' jobs together
-    create_run_time = datetime(2024, 9, 12, 9, 55, tzinfo=pytz.UTC)
-    scheduler.add_job(freshservice_call_create_ticket, DateTrigger(run_date=create_run_time))
-    
-    create_run_time = datetime(2024, 9, 12, 10, 0, tzinfo=pytz.UTC)
-    scheduler.add_job(jira_call_create_ticket, DateTrigger(run_date=create_run_time))
+    run_time = datetime(2024, 9, 12, 10, 10, tzinfo=pytz.UTC)
+    scheduler.add_job(freshservice_call_create_ticket, DateTrigger(run_date=run_time))
 
-    create_run_time = datetime(2024, 9, 12, 10, 5, tzinfo=pytz.UTC)
-    scheduler.add_job(createCardInTrello, DateTrigger(run_date=create_run_time))
+    run_time = datetime(2024, 9, 12, 10, 3, tzinfo=pytz.UTC)
+    scheduler.add_job(jira_call_create_ticket, DateTrigger(run_date=run_time))
 
-    # Grouping all 'update patches and exploits' jobs together
-    update_run_time = datetime(2024, 9, 12, 10, 10, tzinfo=pytz.UTC)
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, DateTrigger(run_date=update_run_time))
+    run_time = datetime(2024, 9, 12, 10, 6, tzinfo=pytz.UTC)
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, DateTrigger(run_date=run_time))
 
-    update_run_time = datetime(2024, 9, 12, 10, 15, tzinfo=pytz.UTC)
-    scheduler.add_job(updateExploitsAndPatchesForJira, DateTrigger(run_date=update_run_time))
+    run_time = datetime(2024, 9, 12, 10, 9, tzinfo=pytz.UTC)
+    scheduler.add_job(updateExploitsAndPatchesForJira, DateTrigger(run_date=run_time))
 
-    update_run_time = datetime(2024, 9, 12, 10, 20, tzinfo=pytz.UTC)
-    scheduler.add_job(updateExploitsAndPatchesForTrello, DateTrigger(run_date=update_run_time))
+    run_time = datetime(2024, 9, 12, 10, 12, tzinfo=pytz.UTC)
+    scheduler.add_job(createCardInTrello, DateTrigger(run_date=run_time))
+
+    run_time = datetime(2024, 9, 12, 10, 15, tzinfo=pytz.UTC)
+    scheduler.add_job(updateExploitsAndPatchesForTrello, DateTrigger(run_date=run_time))
 
     # Uncomment if needed:
     # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=17, minute=20, timezone=ist))  # 5:20 PM IST
