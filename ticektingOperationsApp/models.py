@@ -38,17 +38,18 @@ TICKET_REFERENCE_CHOICES = [
     ('TR', 'Trello')
 ]
 
-class Vulnerabilities(models.Model):
-    id = models.AutoField(primary_key=True)
-    vulId = models.IntegerField()
-    cVulId =models.CharField(max_length=255)
-    createdTicketId = models.CharField(max_length=255, default=None)
-    organizationId = models.IntegerField(default=None)
-    ticketServicePlatform = models.CharField(max_length=20, choices=TICKET_TYPE_CHOICES, default="")
+# class Vulnerabilities(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     vulId = models.IntegerField()
+#     cVulId =models.CharField(max_length=255)
+#     createdTicketId = models.CharField(max_length=255, default=None)
+#     organizationId = models.IntegerField(default=None)
+#     ticketServicePlatform = models.CharField(max_length=20, choices=TICKET_TYPE_CHOICES, default="")
 
 class TicketingServiceDetails(models.Model):
     sq1VulId = models.IntegerField(null=True)
     cVulId =models.CharField(max_length=255)
+    organizationId = models.IntegerField(default=None)
     ticketId = models.IntegerField(null=True)
     ticketIdIfString = models.CharField(max_length=255,null=True)
     ticketServicePlatform = models.CharField(max_length=20, choices=TICKET_TYPE_CHOICES, default="", null=True)

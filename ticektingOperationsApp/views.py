@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from decouple import config
 
 from .dbUtils import get_connection
-from .models import Vulnerabilities
+from .models import *
 
 import json
 import requests
