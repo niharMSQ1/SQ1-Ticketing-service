@@ -4,6 +4,7 @@ import requests
 import logging
 import threading
 import time
+import pytz
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -201,10 +202,11 @@ def freshservice_call_create_ticket():
                             "Authorization": f"Basic {freshservice_key}"
                         }
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                        time.sleep(1.5)
+                        # time.sleep(1.5)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
+                            print(vul_id)
                             save_vulnerability(vul_id=vul_id, organization_id=organization_id, ticket_id=ticket_id)
                             save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList)
                         else:
@@ -376,7 +378,7 @@ def freshservice_call_create_ticket():
                             }
 
                             response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                            time.sleep(1.5)
+                            # time.sleep(1.5)
 
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
@@ -615,7 +617,7 @@ def updateExploitsAndPatchesForFreshservice():
                         "Authorization": f"Basic {key}"
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
-                    time.sleep(1.5)
+                    # time.sleep(1.5)
                     if response.status_code == 201:
                         ticket_id = response.json()['ticket'].get("id")
                         ticket_data = response.json().get("ticket", {})
@@ -1225,7 +1227,7 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        time.sleep(1.5)
+                        # time.sleep(1.5)
                         response.raise_for_status()
                         Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -1888,7 +1890,7 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                            time.sleep(1.5)
+                            # time.sleep(1.5)
                             response.raise_for_status()
                             Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -2541,7 +2543,7 @@ def updateExploitsAndPatchesForJira():
                                 }
 
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                                time.sleep(1.5)
+                                # time.sleep(1.5)
                                 if response.status_code == 204:
                                     ticketUrl = response.url
                                 
@@ -2627,14 +2629,22 @@ def changeVulnerabilityStatusForJira():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=5, minute=0))  # 10:00 am IST
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=5, minute=10))  # 10:05 am IST
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=5, minute=15))  # 10:10 am IST
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=5, minute=30))  # 10:20 am IST
-    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=11, minute=50, timezone=utc))
-    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=11, minute=55, timezone=utc))
+    from apscheduler.triggers.date import DateTrigger
+
+    run_time = datetime(2024, 9, 12, 9, 30, tzinfo=pytz.UTC)
+    scheduler.add_job(freshservice_call_create_ticket, DateTrigger(run_date=run_time))
+    
+    run_time = datetime(2024, 9, 12, 9, 35, tzinfo=pytz.UTC)
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=11, minute=8, timezone=ist))
+
+    run_time = datetime(2024, 9, 12, 9, 40, tzinfo=pytz.UTC)
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=11, minute=10, timezone=ist))
+
+    run_time = datetime(2024, 9, 12, 9, 45, tzinfo=pytz.UTC)
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=11, minute=15, timezone=ist))
+
+    # Uncomment if needed:
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=17, minute=20, timezone=ist))  # 5:20 PM IST
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=17, minute=25, timezone=ist))  # 5:25 PM IST
 
     scheduler.start()
-
-
-
