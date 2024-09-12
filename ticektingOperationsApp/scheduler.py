@@ -201,7 +201,7 @@ def freshservice_call_create_ticket():
                             "Authorization": f"Basic {freshservice_key}"
                         }
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                        time.sleep(0.5)
+                        time.sleep(1.5)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
@@ -376,7 +376,7 @@ def freshservice_call_create_ticket():
                             }
 
                             response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                            time.sleep(0.5)
+                            time.sleep(1.5)
 
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
@@ -615,7 +615,7 @@ def updateExploitsAndPatchesForFreshservice():
                         "Authorization": f"Basic {key}"
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
-                    time.sleep(0.5)
+                    time.sleep(1.5)
                     if response.status_code == 201:
                         ticket_id = response.json()['ticket'].get("id")
                         ticket_data = response.json().get("ticket", {})
@@ -1225,7 +1225,7 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        time.sleep(0.5)
+                        time.sleep(1.5)
                         response.raise_for_status()
                         Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -1888,7 +1888,7 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                            time.sleep(0.5)
+                            time.sleep(1.5)
                             response.raise_for_status()
                             Vulnerabilities.objects.create(
                                 vulId=vul_id,
@@ -2541,7 +2541,7 @@ def updateExploitsAndPatchesForJira():
                                 }
 
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                                time.sleep(0.5)
+                                time.sleep(1.5)
                                 if response.status_code == 204:
                                     ticketUrl = response.url
                                 
