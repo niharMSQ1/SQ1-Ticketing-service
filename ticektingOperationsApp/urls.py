@@ -11,7 +11,8 @@ urlpatterns = [
     path('update-jira-exploits-patches/', updateJiraPatchesAndExploits),
     path('check-status-freshservice/', chechStatusForFreshServicesOrgs),
     path('check-status-jira/', checkStatusForJiraOrgs),
-    path('create_trello_card/',cardCreateTrello)
+    path('create_trello_card/',cardCreateTrello),
+    path('update-trello-exploits-patches/',updatatePatchesAndExploitsForTrello)
 ]
 
 

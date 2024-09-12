@@ -166,3 +166,13 @@ def cardCreateTrello(request):
             "message":"sab changa si"
         }
     )
+
+@csrf_exempt
+def updatatePatchesAndExploitsForTrello(request):
+    from .scheduler import updateExploitsAndPatchesForTrello
+    req =updateExploitsAndPatchesForTrello()
+    return JsonResponse(
+        {
+            "message":"sab changa si"
+        }
+    )

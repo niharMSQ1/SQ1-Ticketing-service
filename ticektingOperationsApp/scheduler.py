@@ -3329,43 +3329,6 @@ def createCardInTrello():
                                     ticketIdIfString = ticket_data.get("id"),
                                     cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id),
                                     ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Trello'][0],
-                                    # plannedStartDate=ticket_data.get("planned_start_date") or None,
-                                    # plannedEffort=ticket_data.get("planned_end_date") or None,
-                                    # subject=ticket_data.get("subject", ""),
-                                    # group_id=ticket_data.get("group_id") or None,
-                                    # departmentId=ticket_data.get("department_id") or None,
-                                    # category=ticket_data.get("category") or None,
-                                    # subCategory=ticket_data.get("sub_category") or None,
-                                    # itemCategory=ticket_data.get("item_category") or None,
-                                    # requesterId=ticket_data.get("requestor_id") or None,
-                                    # responderId=ticket_data.get("responder_id") or None,
-                                    # emailConfigId=ticket_data.get("email_config_id") or None,
-                                    # fwdMails=ticket_data.get("fwd_mails", []),
-                                    # isEscalated=ticket_data.get("is_escalated", False),
-                                    # frDueBy=ticket_data.get("fr_due_by") or None,
-                                    # createdAt=ticket_data.get("created_at") or None,
-                                    # updatedAt=ticket_data.get("updated_at") or None,
-                                    # workSpaceId=ticket_data.get("workspace_id") or None,
-                                    # requestedForId=ticket_data.get("requested_for_id") or None,
-                                    # toEmails=ticket_data.get("to_emails", None),
-                                    # type=None,
-                                    # description=None,
-                                    # descriptionHTML=None,
-                                    # majorIncidentType=ticket_data.get("major_incident_type") or None,
-                                    # businessImpact=ticket_data.get("business_impact") or None,
-                                    # numberOfCustomersImpacted=ticket_data.get("no_of_customers_impacted") or None,
-                                    # patchComplexity=ticket_data.get("patchcomplexity") or None,
-                                    # patchUrl=ticket_data.get("patchurl", ""),
-                                    # patchOs=ticket_data.get("patchos", ""),
-                                    # exploitsName=ticket_data.get("exploitsname", ""),
-                                    # exploitsDescription=ticket_data.get("exploitsdescription", ""),
-                                    # exploitsComplexity=ticket_data.get("exploitscomplexity") or None,
-                                    # exploitsDependency=ticket_data.get("exploitsdependency") or None,
-                                    # tags=ticket_data.get("tags", []),
-                                    # tasksDependencyType=ticket_data.get("tasks_dependency_type") or None,
-                                    # resolutionNotes=ticket_data.get("resolution_notes") or None,
-                                    # resolutionNotesHTML=ticket_data.get("resolution_notes_html") or None,
-                                    # attachments=ticket_data.get("attachments", [])
                                 )
                         except requests.exceptions.HTTPError as http_err:
                             print(f"HTTP error occurred: {http_err}")
@@ -3380,17 +3343,349 @@ def createCardInTrello():
                             # print(f"Success! Response status code: {response.status_code}")
                             # print(f"Response content: {response.content}")
 
-                    
-
-
-
-
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
     finally:
         if connection.is_connected():
             connection.close()
+
+def updateExploitsAndPatchesForTrello():
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    
+    with connection.cursor(dictionary=True) as cursor:
+        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Trello'")
+        ticketing_tools = cursor.fetchall()
+
+        all_tickets = []
+
+        for tool in ticketing_tools:
+            url = tool['url']
+            key = tool['key']
+            token = "ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770"
+            idList = "66dec5e96055fd0afe3273ec"
+
+            try:
+                url = f'https://api.trello.com/1/lists/{idList}/cards'
+                params = {
+                    'key': key,
+                    'token': token
+                }
+
+                responses = requests.get(url, params=params)
+                if responses.status_code == 200:
+                    data = responses.json()
+                    for response in data:
+                        cardId = response.get("id")
+                        checkCarIdInTicketingService = (TicketingServiceDetails.objects.filter(ticketIdIfString = cardId)).exists()
+                        if checkCarIdInTicketingService==True:
+                            vulnerabilityId = (TicketingServiceDetails.objects.get(ticketIdIfString = cardId)).sq1VulId
+                            organizationId = (Vulnerabilities.objects.get(vulId = vulnerabilityId,ticketServicePlatform = "trello")).organizationId
+
+                            ticketObj = TicketingServiceDetails.objects.get(ticketIdIfString =cardId)
+                            exploitsList = ast.literal_eval(ticketObj.exploitsList)
+                            patchesList = ast.literal_eval(ticketObj.patchesList)
+
+                            cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
+                            exploits = cursor.fetchall()
+
+                            cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
+                            patches = cursor.fetchall()
+
+                            cursor.execute(f"""
+                            SELECT *
+                            FROM vulnerabilities
+                            WHERE id = {vulnerabilityId};
+                            """)
+                            vulnerabilityResult = cursor.fetchall()
+
+                            if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
+                                newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                if newPatchIds:
+                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'trello')
+                                    existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                    newPatchesList = existingPatchIds + newPatchIds
+                                    ticket_service_details.patchesList = str(newPatchesList)
+                                    ticket_service_details.save()
+                                newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                if newExploitIds:
+                                    ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'trello')
+                                    existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                    newExploitsList = existingExploitIds + newExploitIds
+                                    ticket_service_details.exploitsList = str(newExploitsList)
+                                    ticket_service_details.save()
+
+                                vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
+
+                                vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
+
+                                # Detection Summary
+                                cves = json.loads(vulnerabilityResult[0]["CVEs"])
+                                cves_string = ", ".join(cves["cves"])
+                                detectionSummaryObj = {
+                                    "CVE": cves_string,
+                                    "Severity": vulnerabilityResult[0]["severity"],
+                                    "first_identified_on": vulnerabilityResult[0]["first_seen"],
+                                    "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
+                                    "patch_priority":vulnerabilityResult[0]["patch_priority"]
+                                    }
+                                listOfDetection = [detectionSummaryObj]
+
+                                def convert_datetime_to_string(data):
+                                    for item in data:
+                                        for key, value in item.items():
+                                            if isinstance(value, datetime):
+                                                item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                                    return data
+                                
+                                listOfDetection = convert_datetime_to_string(listOfDetection)
+
+                                for detection in listOfDetection:
+                                    for key, value in detection.items():
+                                        if value is None:
+                                            detection[key] = "NA"
+
+                                # Remediation Summary
+                                remediationObj = {
+                                        "solution_patch": vulnerabilityResult[0]["solution_patch"],
+                                        "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
+                                        "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                        }
+                                listOfRemediation = [remediationObj]
+
+                                def convert_none(data):
+                                    for remediation in listOfRemediation:
+                                        for key, value in remediation.items():
+                                            if value is None:
+                                                remediation[key]="NA"
+                                    return data
+
+                                listOfRemediation = convert_none(listOfRemediation)
+                                
+
+                                # workstations and servers
+                                cursor.execute("""
+                                SELECT assetable_type, assetable_id
+                                FROM assetables
+                                WHERE vulnerabilities_id = %s
+                                """, (vulnerabilityId,))
+                                assetables_results = cursor.fetchall()
+
+                                assets = {
+                                    "servers": [],
+                                    "workstations": []
+                                }
+                                ass_type = []
+                                for i in assetables_results:
+                                    ass_type.append(i['assetable_type'])
+
+                                ass_id = []
+                                for i in assetables_results:
+                                    ass_id.append(i['assetable_id'])
+
+                                index = 0
+                                for i in ass_type:
+                                    j = ass_id[index]
+                                    if i == 'App\\Models\\Workstations':
+                                        cursor.execute("""
+                                        SELECT host_name, ip_address
+                                        FROM workstations
+                                        WHERE id = %s AND organization_id = %s
+                                        """, (j, organizationId))
+                                        workstation = cursor.fetchone()
+                                        if workstation:
+                                            assets["workstations"].append(workstation)
+                                        index = index+1
+                                    
+
+                                    if i == 'App\\Models\\Servers':
+                                        cursor.execute("""
+                                        SELECT host_name, ip_address
+                                        FROM workstations
+                                        WHERE id = %s AND organization_id = %s
+                                        """, (j, organizationId))
+                                        server = cursor.fetchone()
+                                        if server:
+                                            assets["servers"].append(server)
+                                        index = index+1
+                                
+                                workstations = assets['workstations']
+
+                                def convert_none_workstations(data):
+                                    for workstation in workstations:
+                                        for key, value in workstation.items():
+                                            if value is None:
+                                                workstation[key]="NA"
+                                    return data
+
+                                workstations = convert_none_workstations(workstations)
+
+                                servers = assets['servers']
+
+                                def convert_none_servers(data):
+                                    for server in servers:
+                                        for key, value in server.items():
+                                            if value is None:
+                                                server[key]="NA"
+                                    return data
+
+                                servers = convert_none_servers(servers)
+
+                                # exploits and patches
+
+                                allExploits = exploits
+                                def convert_none_for_exploits(data):
+                                    for exploit in allExploits:
+                                        for key, value in exploit.items():
+                                            if value is None:
+                                                exploit[key]="NA"
+                                    return data
+                                allExploits = convert_none_for_exploits(allExploits)
+                                allPatches = [
+                                    {
+                                        **patch,
+                                        'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
+                                    } for patch in patches
+                                ]
+
+
+                                def convert_none_for_patches(data):
+                                    for patch in allPatches:
+                                        for key, value in patch.items():
+                                            if value is None:
+                                                patch[key]="NA"
+                                    return data
+                                allPatches = convert_none_for_patches(allPatches)
+
+                                def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
+
+                                    # Adding the vulnerability description at the top with a prominent title
+                                    vulnerability_section = f"# **{vulnerability_description}**\n\n"
+
+                                    # Detection section with subheadings for each detection
+                                    detection_section = "## Detection Summary\n\n"
+                                    if listOfDetection:
+                                        for i, detection in enumerate(listOfDetection, 1):
+                                            detection_section += f"### Detection {i} \n\n"
+                                            detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
+                                            detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
+                                            detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
+                                            detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
+                                            detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
+                                            detection_section += "---\n\n"  # Add a horizontal rule to separate detections
+                                    else:
+                                        detection_section += "_No detections found._\n\n"
+
+                                    # Remediation section with subheadings for each remediation
+                                    remediation_section = "## Remediation Steps\n\n"
+                                    if listOfRemediation:
+                                        for i, remediation in enumerate(listOfRemediation, 1):
+                                            remediation_section += f"### Remediation {i} \n\n"
+                                            remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
+                                            remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
+                                            remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
+                                            remediation_section += "---\n\n"  # Horizontal rule between items
+                                    else:
+                                        remediation_section += "_No remediation steps available._\n\n"
+
+                                    # Exploits section with clear divisions for each exploit
+                                    exploit_section = "## Exploits\n\n"
+                                    if allExploits:
+                                        for i, exploit in enumerate(allExploits, 1):
+                                            exploit_section += f"### Exploit {i} \n\n"
+                                            exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
+                                            exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
+                                            exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
+                                            exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
+                                            exploit_section += "---\n\n"  # Horizontal rule between exploits
+                                    else:
+                                        exploit_section += "_No exploits found._\n\n"
+
+                                    # Patches section with clear divisions for each patch
+                                    patch_section = "## Patches\n\n"
+                                    if allPatches:
+                                        for i, patch in enumerate(allPatches, 1):
+                                            patch_section += f"### Patch {i} \n\n"
+                                            patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
+                                            patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
+                                            patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
+                                            patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
+                                            patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
+                                            patch_section += "---\n\n"  # Horizontal rule between patches
+                                    else:
+                                        patch_section += "_No patches available._\n\n"
+
+                                    # Workstation section with detailed lists
+                                    workstation_section = "## Workstations\n\n"
+                                    if workstations:
+                                        for i, workstation in enumerate(workstations, 1):
+                                            workstation_section += f"### Workstation {i} \n\n"
+                                            workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
+                                            workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
+                                            workstation_section += "---\n\n"
+                                    else:
+                                        workstation_section += "_No workstations found._\n\n"
+
+                                    # Server section with detailed lists
+                                    server_section = "## Servers\n\n"
+                                    if servers:
+                                        for i, server in enumerate(servers, 1):
+                                            server_section += f"### Server {i} \n\n"
+                                            server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
+                                            server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
+                                            server_section += "---\n\n"
+                                    else:
+                                        server_section += "_No servers found._\n\n"
+
+                                    # Combine all sections
+                                    description = (
+                                        vulnerability_section +
+                                        detection_section +
+                                        remediation_section +
+                                        exploit_section +
+                                        patch_section +
+                                        workstation_section +
+                                        server_section
+                                    )
+
+                                    return description
+
+                                description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vulnerabilityId)
+
+                                combined_data = {
+                                    "name": vulnerabilityResult[0]['name'],
+                                    "idList": idList,
+                                    "desc": description
+                                }
+
+                                query = {
+                                    'key': '98fd0727355703d244288202ae96c469',
+                                    'token': 'ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770',
+                                    'idList': '66dec5e96055fd0afe3273ec', 
+                                    "name": vulnerabilityResult[0]['name'],
+                                    'desc': description
+                                }
+
+                                
+                                try:
+                                    response = requests.post(url, params=query)
+                                    response.raise_for_status()
+
+                                except Exception as e:
+                                    print(e)
+
+
+
+
+            
+
+
+            except Exception as e:
+                print(e)
+
+
 
 
 def start_scheduler():
@@ -3411,6 +3706,9 @@ def start_scheduler():
     
     # run_time = datetime(2024, 9, 12, 9, 45, tzinfo=pytz.UTC)
     # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=11, minute=15, timezone=ist))
+
+    # run_time = datetime(2024, 9, 12, 9, 45, tzinfo=pytz.UTC)
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=11, minute=15, timezone=ist))
 
     # Uncomment if needed:
     # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=17, minute=20, timezone=ist))  # 5:20 PM IST
