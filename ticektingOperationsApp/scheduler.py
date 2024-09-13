@@ -618,7 +618,7 @@ def updateExploitsAndPatchesForFreshservice():
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
                     time.sleep(3)
-                    if response.status_code == 201:
+                    if response.status_code == 200:
                         newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                         if newPatchIds:
                             ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
