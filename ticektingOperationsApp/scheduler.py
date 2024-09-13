@@ -9,8 +9,9 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.date import DateTrigger
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from decouple import config
 
@@ -20,7 +21,7 @@ from django.template.loader import render_to_string
 
 from requests.auth import HTTPBasicAuth
 
-from pytz import timezone
+# from pytz import timezone
 
 from .dbUtils import get_connection
 from .models import *
@@ -3648,12 +3649,24 @@ def updateExploitsAndPatchesForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler()
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=9, minute=30))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=9, minute=40))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=9, minute=50))
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=10, minute=00))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=10, minute=5)) 
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=10, minute=10))
+    now = datetime.now(timezone.utc)
+
+    scheduler.add_job(freshservice_call_create_ticket, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=30, second=0, microsecond=0)))
     
+    scheduler.add_job(jira_call_create_ticket, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=35, second=0, microsecond=0)))
+    
+    scheduler.add_job(createCardInTrello, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=40, second=0, microsecond=0)))
+    
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=45, second=0, microsecond=0)))
+    
+    scheduler.add_job(updateExploitsAndPatchesForJira, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=50, second=0, microsecond=0)))
+    
+    scheduler.add_job(updateExploitsAndPatchesForTrello, 
+                      DateTrigger(run_date=now.replace(hour=9, minute=55, second=0, microsecond=0)))
 
     scheduler.start()
