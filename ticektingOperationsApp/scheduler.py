@@ -449,20 +449,6 @@ def updateExploitsAndPatchesForFreshservice():
                 cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
                 patches = cursor.fetchall()
                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                    # newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                    # if newPatchIds:
-                    #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                    #     existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                    #     newPatchesList = existingPatchIds + newPatchIds
-                    #     ticket_service_details.patchesList = str(newPatchesList)
-                    #     ticket_service_details.save()
-                    # newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                    # if newExploitIds:
-                    #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                    #     existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                    #     newExploitsList = existingExploitIds + newExploitIds
-                    #     ticket_service_details.exploitsList = str(newExploitsList)
-                    #     ticket_service_details.save()
 
                     cursor.execute(f"""
                     SELECT *
@@ -3651,22 +3637,24 @@ def start_scheduler():
 
     now = datetime.now(timezone.utc)
 
-    # scheduler.add_job(freshservice_call_create_ticket, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=20, second=0, microsecond=0)))
-    
-    # scheduler.add_job(jira_call_create_ticket, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=25, second=0, microsecond=0)))
-    
-    # scheduler.add_job(createCardInTrello, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=30, second=0, microsecond=0)))
-    
-    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=35, second=0, microsecond=0)))
-    
-    # scheduler.add_job(updateExploitsAndPatchesForJira, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=40, second=0, microsecond=0)))
-    
-    # scheduler.add_job(updateExploitsAndPatchesForTrello, 
-    #                   DateTrigger(run_date=now.replace(hour=8, minute=45, second=0, microsecond=0)))
+    initial_time = now.replace(hour=5, minute=15, second=0, microsecond=0) 
+
+    scheduler.add_job(freshservice_call_create_ticket, 
+                      DateTrigger(run_date=initial_time))
+
+    scheduler.add_job(jira_call_create_ticket, 
+                      DateTrigger(run_date=initial_time + timedelta(minutes=7)))
+
+    scheduler.add_job(createCardInTrello, 
+                      DateTrigger(run_date=initial_time + timedelta(minutes=14)))
+
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
+                      DateTrigger(run_date=initial_time + timedelta(minutes=21)))
+
+    scheduler.add_job(updateExploitsAndPatchesForJira, 
+                      DateTrigger(run_date=initial_time + timedelta(minutes=28)))
+
+    scheduler.add_job(updateExploitsAndPatchesForTrello, 
+                      DateTrigger(run_date=initial_time + timedelta(minutes=35)))
 
     scheduler.start()
