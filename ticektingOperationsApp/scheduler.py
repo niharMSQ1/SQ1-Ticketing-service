@@ -3637,7 +3637,7 @@ def start_scheduler():
 
     now = datetime.now(timezone.utc)
 
-    initial_time = now.replace(hour=5, minute=15, second=0, microsecond=0) 
+    initial_time = now.replace(hour=5, minute=40, second=0, microsecond=0) 
 
     scheduler.add_job(freshservice_call_create_ticket, 
                       DateTrigger(run_date=initial_time))
