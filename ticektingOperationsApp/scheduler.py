@@ -3709,26 +3709,16 @@ def updateExploitsAndPatchesForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler()
 
-    # now = datetime.now(timezone.utc)
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=3, minute=20))
 
-    # initial_time = now.replace(hour=5, minute=40, second=0, microsecond=0) 
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=3, minute=25))
 
-    # scheduler.add_job(freshservice_call_create_ticket, 
-    #                   DateTrigger(run_date=initial_time))
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=3, minute=30))
 
-    # scheduler.add_job(jira_call_create_ticket, 
-    #                   DateTrigger(run_date=initial_time + timedelta(minutes=7)))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=3, minute=35))
 
-    # scheduler.add_job(createCardInTrello, 
-    #                   DateTrigger(run_date=initial_time + timedelta(minutes=14)))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=3, minute=40))
 
-    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
-    #                   DateTrigger(run_date=initial_time + timedelta(minutes=21)))
-
-    # scheduler.add_job(updateExploitsAndPatchesForJira, 
-    #                   DateTrigger(run_date=initial_time + timedelta(minutes=28)))
-
-    # scheduler.add_job(updateExploitsAndPatchesForTrello, 
-    #                   DateTrigger(run_date=initial_time + timedelta(minutes=15)))
+    scheduler.add_job(updateExploitsAndPatchesForTrello,  CronTrigger(hour=3, minute=45))
 
     scheduler.start()
