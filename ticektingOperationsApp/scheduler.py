@@ -207,11 +207,22 @@ def freshservice_call_create_ticket():
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
-                            print(vul_id)
-                            
-                            save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList, organization_id)
+
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+
+                            if not checkVulIdExists:
+                                save_ticket_details(ticket_data, vul_id, exploitIdList, patchesIdList, organization_id)
+                                print(f"Ticket created successfully for vulnerabilities.")
+                            else:
+                                delete_url = f"{freshservice_url}/{ticket_id}"
+                                delete_response = requests.delete(delete_url, headers=headers)
+                                if delete_response.status_code == 204:
+                                    print(f"Ticket {ticket_id} deleted successfully.")
+                                else:
+                                    print(f"Failed to delete ticket {ticket_id}, status code: {delete_response.status_code}")
+
                         else:
-                            print(f"Failed to create ticket for vulnerability {freshservice_url} {vul_id}: {response.json()}")
+                            print(f"Failed to create ticket, status code: {response.status_code}")
 
                     return JsonResponse({"message": f"tickets created successfully."}, status=200)
 
@@ -384,11 +395,22 @@ def freshservice_call_create_ticket():
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
                                 ticket_data = response.json().get("ticket", {})
-                                
-                                save_ticket_details(ticket_data, vul_id, exploitIdList,patchesIdList, organization_id)
-                                print(f"Ticket created successfully for vulnerabilities")
+
+                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+
+                                if not checkVulIdExists:
+                                    save_ticket_details(ticket_data, vul_id, exploitIdList, patchesIdList, organization_id)
+                                    print(f"Ticket created successfully for vulnerabilities.")
+                                else:
+                                    delete_url = f"{freshservice_url}/{ticket_id}"
+                                    delete_response = requests.delete(delete_url, headers=headers)
+                                    if delete_response.status_code == 204:
+                                        print(f"Ticket {ticket_id} deleted successfully.")
+                                    else:
+                                        print(f"Failed to delete ticket {ticket_id}, status code: {delete_response.status_code}")
+
                             else:
-                                print(f"Failed to create ticket for vulnerability {vul_id}: {response.json()}")
+                                print(f"Failed to create ticket, status code: {response.status_code}")
 
                         return JsonResponse({"message": "tickets created successfully."}, status=200)
 
@@ -1225,17 +1247,26 @@ def jira_call_create_ticket():
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
                         time.sleep(3)
-                        response.raise_for_status()
-                        ticket_data = response.json()
-                        TicketingServiceDetails.objects.create(
-                                exploitsList = exploitIdList ,
-                                patchesList = patchesIdList,
-                                organizationId=organization_id,
-                                sq1VulId = vul_id,
-                                ticketId=int(((response.json())['key']).split('-')[1]),
-                                cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id),
-                                ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'JIRA'][0],
-                            )
+                        if response.status_code == 201:
+
+                            ticket_data = response.json()
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                            if not checkVulIdExists:
+                                TicketingServiceDetails.objects.create(
+                                        exploitsList = exploitIdList ,
+                                        patchesList = patchesIdList,
+                                        organizationId=organization_id,
+                                        sq1VulId = vul_id,
+                                        ticketId=int(((response.json())['key']).split('-')[1]),
+                                        cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id),
+                                        ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'JIRA'][0],
+                                    )
+                            else:
+                                issue_key=int(((response.json())['key']).split('-')[1])
+                                delete_response = requests.delete(f'{jira_url}{issue_key}', auth=HTTPBasicAuth(username, password))
+                                if delete_response.status_code == 204:
+                                    print(f"duplicate issue {issue_key} got deleted")
+
                     except requests.exceptions.HTTPError as http_err:
                         print(f"HTTP error occurred: {http_err}")
                     except requests.exceptions.ConnectionError as conn_err:
@@ -1845,17 +1876,26 @@ def jira_call_create_ticket():
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
                             time.sleep(3)
-                            response.raise_for_status()
-                            ticket_data = response.json()
-                            TicketingServiceDetails.objects.create(
-                                exploitsList = exploitIdList,
-                                patchesList = patchesIdList,
-                                organizationId=organization_id,
-                                sq1VulId = vul_id,
-                                ticketId=int(((response.json())['key']).split('-')[1]),
-                                cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id),
-                                ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'JIRA'][0],
-                            )
+                            if response.status_code == 201:
+
+                                ticket_data = response.json()
+                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                                if not checkVulIdExists:
+                                    TicketingServiceDetails.objects.create(
+                                            exploitsList = exploitIdList ,
+                                            patchesList = patchesIdList,
+                                            organizationId=organization_id,
+                                            sq1VulId = vul_id,
+                                            ticketId=int(((response.json())['key']).split('-')[1]),
+                                            cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id),
+                                            ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'JIRA'][0],
+                                        )
+                                else:
+                                    issue_key=int(((response.json())['key']).split('-')[1])
+                                    delete_response = requests.delete(f'{jira_url}{issue_key}', auth=HTTPBasicAuth(username, password))
+                                    if delete_response.status_code == 204:
+                                        print(f"duplicate issue {issue_key} got deleted")
+
                         except requests.exceptions.HTTPError as http_err:
                             print(f"HTTP error occurred: {http_err}")
                         except requests.exceptions.ConnectionError as conn_err:
@@ -2515,41 +2555,41 @@ def changeVulnerabilityStatusForFreshService():
             except requests.RequestException as e:
                 print(f"Request failed for {url}: {str(e)}")
             
-def changeVulnerabilityStatusForJira():
-    connection = get_connection()
-    if not connection or not connection.is_connected():
-        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+# def changeVulnerabilityStatusForJira():
+#     connection = get_connection()
+#     if not connection or not connection.is_connected():
+#         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
-    with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'JIRA'")
-        ticketing_tools = cursor.fetchall()
+#     with connection.cursor(dictionary=True) as cursor:
+#         cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'JIRA'")
+#         ticketing_tools = cursor.fetchall()
 
-        all_tickets = []
+#         all_tickets = []
 
-        for tool in ticketing_tools:
-            url = tool['url']
-            key = tool['key']
+#         for tool in ticketing_tools:
+#             url = tool['url']
+#             key = tool['key']
 
-            headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {key}"
-                    }
+#             headers = {
+#                         "Content-Type": "application/json",
+#                         "Authorization": f"Bearer {key}"
+#                     }
             
-            try:
-                username = "nihar.m@secqureone.com"
-                password = key
-                params={
-                        "maxResults": 1000
-                    }
-                response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
-                if response.status_code == 200:
-                    for response in response.json()['issues']:
-                        if response['fields']['status']['name'] == "Completed":
-                            issueId = int(((response.get("key")).split('-')[1]))
-                            vulId = (TicketingServiceDetails.objects.get(createdTicketId = issueId)).sq1VulId
-                            cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
-            except Exception as e:
-                print(e)
+#             try:
+#                 username = "nihar.m@secqureone.com"
+#                 password = key
+#                 params={
+#                         "maxResults": 1000
+#                     }
+#                 response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
+#                 if response.status_code == 200:
+#                     for response in response.json()['issues']:
+#                         if response['fields']['status']['name'] == "Completed":
+#                             issueId = int(((response.get("key")).split('-')[1]))
+#                             vulId = (TicketingServiceDetails.objects.get(createdTicketId = issueId)).sq1VulId
+#                             cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
+#             except Exception as e:
+#                 print(e)
 
 def createCardInTrello():
     connection = get_connection()
@@ -2897,19 +2937,36 @@ def createCardInTrello():
                     
                     try:
                         response = requests.post(url, params=query)
-                        response.raise_for_status()
-                        ticket_data = response.json()
-                        TicketingServiceDetails.objects.create(
-                                exploitsList = exploitIdList ,
-                                patchesList = patchesIdList,
-                                sq1VulId = vul_id,
-                                ticketId=None,
-                                organizationId=organization_id,
-                                ticketIdIfString = ticket_data.get("id"),
-                                cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id),
-                                ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Trello'][0],
-                                
-                            )
+                        if response.status_code == 201:
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                            if not checkVulIdExists:
+                                ticket_data = response.json()
+                                TicketingServiceDetails.objects.create(
+                                        exploitsList = exploitIdList ,
+                                        patchesList = patchesIdList,
+                                        sq1VulId = vul_id,
+                                        ticketId=None,
+                                        organizationId=organization_id,
+                                        ticketIdIfString = ticket_data.get("id"),
+                                        cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id),
+                                        ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Trello'][0],
+                                        
+                                    )
+                            else:
+                                ticketIdIfString = ticket_data.get("id")
+                                url = f"https://api.trello.com/1/cards/{ticketIdIfString}"
+                                query = {
+                                    'key': '98fd0727355703d244288202ae96c469',
+                                    'token': token,
+                                    'closed': 'true'
+                                }
+                                response = requests.put(url, params=query)
+
+                                if response.status_code == 200:
+                                    print("Card archived successfully!")
+                                else:
+                                    print(f"Failed to archive card. Status code: {response.status_code}")
+
 
                     except requests.exceptions.HTTPError as http_err:
                         print(f"HTTP error occurred: {http_err}")
@@ -3268,18 +3325,35 @@ def createCardInTrello():
                         
                         try:
                             response = requests.post(url, params=query)
-                            response.raise_for_status()
-                            ticket_data = response.json()
-                            TicketingServiceDetails.objects.create(
-                                    exploitsList = exploitIdList ,
-                                    patchesList = patchesIdList,
-                                    organizationId=organization_id,
-                                    sq1VulId = vul_id,
-                                    ticketId=None,
-                                    ticketIdIfString = ticket_data.get("id"),
-                                    cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id),
-                                    ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Trello'][0],
-                                )
+                            if response.status_code == 201:
+                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                                if not checkVulIdExists:
+                                    ticket_data = response.json()
+                                    TicketingServiceDetails.objects.create(
+                                            exploitsList = exploitIdList ,
+                                            patchesList = patchesIdList,
+                                            sq1VulId = vul_id,
+                                            ticketId=None,
+                                            organizationId=organization_id,
+                                            ticketIdIfString = ticket_data.get("id"),
+                                            cVulId = [key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id),
+                                            ticketServicePlatform=[key for key, value in TICKET_TYPE_CHOICES if value == 'Trello'][0],
+                                            
+                                        )
+                                else:
+                                    ticketIdIfString = ticket_data.get("id")
+                                    url = f"https://api.trello.com/1/cards/{ticketIdIfString}"
+                                    query = {
+                                        'key': '98fd0727355703d244288202ae96c469',
+                                        'token': token,
+                                        'closed': 'true'
+                                    }
+                                    response = requests.put(url, params=query)
+
+                                    if response.status_code == 200:
+                                        print("Card archived successfully!")
+                                    else:
+                                        print(f"Failed to archive card. Status code: {response.status_code}")
                         except requests.exceptions.HTTPError as http_err:
                             print(f"HTTP error occurred: {http_err}")
                         except requests.exceptions.ConnectionError as conn_err:
@@ -3635,26 +3709,26 @@ def updateExploitsAndPatchesForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler()
 
-    now = datetime.now(timezone.utc)
+    # now = datetime.now(timezone.utc)
 
-    initial_time = now.replace(hour=5, minute=40, second=0, microsecond=0) 
+    # initial_time = now.replace(hour=5, minute=40, second=0, microsecond=0) 
 
-    scheduler.add_job(freshservice_call_create_ticket, 
-                      DateTrigger(run_date=initial_time))
+    # scheduler.add_job(freshservice_call_create_ticket, 
+    #                   DateTrigger(run_date=initial_time))
 
-    scheduler.add_job(jira_call_create_ticket, 
-                      DateTrigger(run_date=initial_time + timedelta(minutes=7)))
+    # scheduler.add_job(jira_call_create_ticket, 
+    #                   DateTrigger(run_date=initial_time + timedelta(minutes=7)))
 
-    scheduler.add_job(createCardInTrello, 
-                      DateTrigger(run_date=initial_time + timedelta(minutes=14)))
+    # scheduler.add_job(createCardInTrello, 
+    #                   DateTrigger(run_date=initial_time + timedelta(minutes=14)))
 
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
-                      DateTrigger(run_date=initial_time + timedelta(minutes=21)))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, 
+    #                   DateTrigger(run_date=initial_time + timedelta(minutes=21)))
 
-    scheduler.add_job(updateExploitsAndPatchesForJira, 
-                      DateTrigger(run_date=initial_time + timedelta(minutes=28)))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, 
+    #                   DateTrigger(run_date=initial_time + timedelta(minutes=28)))
 
-    scheduler.add_job(updateExploitsAndPatchesForTrello, 
-                      DateTrigger(run_date=initial_time + timedelta(minutes=35)))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, 
+    #                   DateTrigger(run_date=initial_time + timedelta(minutes=15)))
 
     scheduler.start()
