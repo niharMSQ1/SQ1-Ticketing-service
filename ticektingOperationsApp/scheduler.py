@@ -3712,7 +3712,7 @@ def start_scheduler():
     today = now.date()
 
     start_hour = 8
-    start_minute = 30
+    start_minute = 40
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
@@ -3723,20 +3723,3 @@ def start_scheduler():
 
     scheduler.start()
 
-
-def start_schedulerr():
-    scheduler = BackgroundScheduler(timezone=pytz.UTC)
-
-    now = datetime.now(pytz.UTC)
-    today = now.date()
-
-    start_hour = 8
-    start_minute = 30
-
-    # Add your scheduled jobs here
-    # For example:
-    # scheduler.add_job(your_job_function, 'cron', hour=start_hour, minute=start_minute)
-
-    scheduler.start()
-
-    return now, today, start_hour, start_minute

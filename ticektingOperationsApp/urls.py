@@ -19,7 +19,6 @@ urlpatterns = [
     path('create_trello_card/',cardCreateTrello),
     path('update-trello-exploits-patches/',updatatePatchesAndExploitsForTrello),
     path('register/', register, name='register'),
-    path('start-scheduler/', scheduler_view, name='start_scheduler'),
 ]
 
 
