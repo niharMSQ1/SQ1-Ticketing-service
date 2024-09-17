@@ -279,3 +279,17 @@ def updatatePatchesAndExploitsForTrello(request):
             "message":"sab changa si"
         }
     )
+
+@csrf_exempt
+def scheduler_view(request):
+    from .scheduler import start_schedulerr
+    now, today, start_hour, start_minute = start_schedulerr()
+    
+    response_data = {
+        'now': now.isoformat(),
+        'today': today.isoformat(),
+        'start_hour': start_hour,
+        'start_minute': start_minute
+    }
+    
+    return JsonResponse(response_data)
