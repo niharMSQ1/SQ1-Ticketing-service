@@ -2936,7 +2936,7 @@ def createCardInTrello():
                     
                     try:
                         response = requests.post(url, params=query)
-                        if response.status_code == 201:
+                        if response.status_code == 200:
                             checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id))).exists()
                             if not checkVulIdExists:
                                 ticket_data = response.json()
@@ -3324,7 +3324,7 @@ def createCardInTrello():
                         
                         try:
                             response = requests.post(url, params=query)
-                            if response.status_code == 201:
+                            if response.status_code == 200:
                                 checkVulIdExists =TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id))).exists()
                                 if not checkVulIdExists:
                                     ticket_data = response.json()
@@ -3711,7 +3711,7 @@ def start_scheduler():
     now = datetime.now(pytz.UTC)
     today = now.date()
 
-    start_hour = 9
+    start_hour = 12
     start_minute = 0
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
