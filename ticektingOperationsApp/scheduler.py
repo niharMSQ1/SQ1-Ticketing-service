@@ -2516,43 +2516,43 @@ def updateExploitsAndPatchesForJira():
             except Exception as e:
                 return JsonResponse({})
             
-def changeVulnerabilityStatusForFreshService():
-    connection = get_connection()
-    if not connection or not connection.is_connected():
-        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+# def changeVulnerabilityStatusForFreshService():
+#     connection = get_connection()
+#     if not connection or not connection.is_connected():
+#         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
-    with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Freshservice'")
-        ticketing_tools = cursor.fetchall()
+#     with connection.cursor(dictionary=True) as cursor:
+#         cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Freshservice'")
+#         ticketing_tools = cursor.fetchall()
 
-        all_tickets = []
+#         all_tickets = []
 
-        for tool in ticketing_tools:
-            url = tool['url']
-            key = tool['key']
+#         for tool in ticketing_tools:
+#             url = tool['url']
+#             key = tool['key']
             
-            headers = {
-                "Content-Type":"application/json",
-                "Authorization": f"Basic {key}"
-            }
+#             headers = {
+#                 "Content-Type":"application/json",
+#                 "Authorization": f"Basic {key}"
+#             }
 
-            try:
-                params = {
-                    "per_page": 100
-                }
-                response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
+#             try:
+#                 params = {
+#                     "per_page": 100
+#                 }
+#                 response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
 
-                if response.status_code == 200:
-                    tickets = response.json().get('tickets', [])
-                    all_tickets.extend(tickets)
-                    for ticket in all_tickets:
-                        if ticket.get("status") ==4:
-                            vulId = (TicketingServiceDetails.objects.get(createdTicketId = ticket.get("id"))).sq1VulId
-                            cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
-                else:
-                    print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
-            except requests.RequestException as e:
-                print(f"Request failed for {url}: {str(e)}")
+#                 if response.status_code == 200:
+#                     tickets = response.json().get('tickets', [])
+#                     all_tickets.extend(tickets)
+#                     for ticket in all_tickets:
+#                         if ticket.get("status") ==4:
+#                             vulId = (TicketingServiceDetails.objects.get(createdTicketId = ticket.get("id"))).sq1VulId
+#                             cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
+#                 else:
+#                     print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
+#             except requests.RequestException as e:
+#                 print(f"Request failed for {url}: {str(e)}")
             
 # def changeVulnerabilityStatusForJira():
 #     connection = get_connection()

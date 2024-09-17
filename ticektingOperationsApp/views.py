@@ -232,29 +232,29 @@ def updateJiraPatchesAndExploits(request):
         "message":"sab changa si"
     })
 
-@csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def chechStatusForFreshServicesOrgs(request):
-    from .scheduler import changeVulnerabilityStatusForFreshService
-    req = changeVulnerabilityStatusForFreshService()
-    return JsonResponse(
-        {
-            "message":"sab changa si"
-        }
-    )
+# @csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def chechStatusForFreshServicesOrgs(request):
+#     from .scheduler import changeVulnerabilityStatusForFreshService
+#     req = changeVulnerabilityStatusForFreshService()
+#     return JsonResponse(
+#         {
+#             "message":"sab changa si"
+#         }
+#     )
 
-@csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def checkStatusForJiraOrgs(request):
-    from .scheduler import changeVulnerabilityStatusForJira
-    req =changeVulnerabilityStatusForJira()
-    return JsonResponse(
-        {
-            "message":"sab changa si"
-        }
-    )
+# @csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def checkStatusForJiraOrgs(request):
+#     from .scheduler import changeVulnerabilityStatusForJira
+#     req =changeVulnerabilityStatusForJira()
+#     return JsonResponse(
+#         {
+#             "message":"sab changa si"
+#         }
+#     )
 
 @csrf_exempt
 @api_view(['GET'])

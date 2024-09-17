@@ -6,19 +6,27 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path('', test),
+    path('register/', register, name='register'),
     path('login/', login, name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('delete-all-tickets-freshservice/', delete_all_tickets_freshservice, name='delete_all_tickets'),
+
+    # Freshservice
     path('create-ticket-manually-freshservice/', createTicketManuallyForFreshservice),
-    path('create-ticket-manually-jira/', createTicketManuallyJira),
     path('update-ticket-manually-freshservice/', updateTicketManuallyForFreshService),
-    path('delete_jira_issues/',delete_jira_issues),
+    path('delete-all-tickets-freshservice/', delete_all_tickets_freshservice, name='delete_all_tickets'),
+
+    # Jira
+    path('create-ticket-manually-jira/', createTicketManuallyJira),
     path('update-jira-exploits-patches/', updateJiraPatchesAndExploits),
-    path('check-status-freshservice/', chechStatusForFreshServicesOrgs),
-    path('check-status-jira/', checkStatusForJiraOrgs),
+    path('delete_jira_issues/',delete_jira_issues),
+
+    # Trello
     path('create_trello_card/',cardCreateTrello),
     path('update-trello-exploits-patches/',updatatePatchesAndExploitsForTrello),
-    path('register/', register, name='register'),
+
+    
+    # path('check-status-freshservice/', chechStatusForFreshServicesOrgs),
+    # path('check-status-jira/', checkStatusForJiraOrgs),
 ]
 
 
