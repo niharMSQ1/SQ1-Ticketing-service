@@ -11,7 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, time
 
 from decouple import config
 
@@ -203,7 +203,7 @@ def freshservice_call_create_ticket():
                             "Authorization": f"Basic {freshservice_key}"
                         }
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                        time.sleep(3)
+                        # time.sleep(3)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
@@ -390,7 +390,7 @@ def freshservice_call_create_ticket():
                             }
 
                             response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                            time.sleep(3)
+                            # time.sleep(3)
 
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
@@ -626,7 +626,7 @@ def updateExploitsAndPatchesForFreshservice():
                         "Authorization": f"Basic {key}"
                     }
                     response = requests.put(url, json=combined_data, headers=headers)
-                    time.sleep(3)
+                    # time.sleep(3)
                     if response.status_code == 200:
                         newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                         if newPatchIds:
@@ -1246,7 +1246,7 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        time.sleep(3)
+                        # time.sleep(3)
                         if response.status_code == 201:
 
                             ticket_data = response.json()
@@ -1875,7 +1875,7 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                            time.sleep(3)
+                            # time.sleep(3)
                             if response.status_code == 201:
 
                                 ticket_data = response.json()
@@ -2494,7 +2494,7 @@ def updateExploitsAndPatchesForJira():
                                 }
 
                                 response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                                time.sleep(3)
+                                # time.sleep(3)
                                 if response.status_code == 204:
                                     newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                                     if newPatchIds:
@@ -3707,18 +3707,19 @@ def updateExploitsAndPatchesForTrello():
 
 
 def start_scheduler():
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=3, minute=20))
+    now = datetime.now(pytz.UTC)
+    today = now.date()
 
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=3, minute=25))
+    start_hour = 7
+    start_minute = 25
 
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=3, minute=30))
-
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=3, minute=35))
-
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=3, minute=40))
-
-    scheduler.add_job(updateExploitsAndPatchesForTrello,  CronTrigger(hour=3, minute=45))
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
 
     scheduler.start()
