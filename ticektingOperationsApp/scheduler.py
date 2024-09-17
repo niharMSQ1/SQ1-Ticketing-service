@@ -207,8 +207,7 @@ def freshservice_call_create_ticket():
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
-
-                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Freshservice'][0] + "-" +str(vul_id))).exists()
 
                             if not checkVulIdExists:
                                 save_ticket_details(ticket_data, vul_id, exploitIdList, patchesIdList, organization_id)
@@ -396,7 +395,7 @@ def freshservice_call_create_ticket():
                                 ticket_id = response.json()['ticket'].get("id")
                                 ticket_data = response.json().get("ticket", {})
 
-                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                                checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Freshservice'][0] + "-" +str(vul_id))).exists()
 
                                 if not checkVulIdExists:
                                     save_ticket_details(ticket_data, vul_id, exploitIdList, patchesIdList, organization_id)
@@ -1250,7 +1249,7 @@ def jira_call_create_ticket():
                         if response.status_code == 201:
 
                             ticket_data = response.json()
-                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id))).exists()
                             if not checkVulIdExists:
                                 TicketingServiceDetails.objects.create(
                                         exploitsList = exploitIdList ,
@@ -1879,7 +1878,7 @@ def jira_call_create_ticket():
                             if response.status_code == 201:
 
                                 ticket_data = response.json()
-                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                                checkVulIdExists =TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id))).exists()
                                 if not checkVulIdExists:
                                     TicketingServiceDetails.objects.create(
                                             exploitsList = exploitIdList ,
@@ -2938,7 +2937,7 @@ def createCardInTrello():
                     try:
                         response = requests.post(url, params=query)
                         if response.status_code == 201:
-                            checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                            checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id))).exists()
                             if not checkVulIdExists:
                                 ticket_data = response.json()
                                 TicketingServiceDetails.objects.create(
@@ -3326,7 +3325,7 @@ def createCardInTrello():
                         try:
                             response = requests.post(url, params=query)
                             if response.status_code == 201:
-                                checkVulIdExists = TicketingServiceDetails.objects.filter(sq1VulId=vul_id).exists()
+                                checkVulIdExists =TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'Trello'][0] + "-" +str(vul_id))).exists()
                                 if not checkVulIdExists:
                                     ticket_data = response.json()
                                     TicketingServiceDetails.objects.create(
