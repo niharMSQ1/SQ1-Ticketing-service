@@ -3730,8 +3730,8 @@ def start_schedulerr():
     now = datetime.now(pytz.UTC)
     today = now.date()
 
-    start_hour = 7
-    start_minute = 10
+    start_hour = 8
+    start_minute = 30
 
     # Add your scheduled jobs here
     # For example:
