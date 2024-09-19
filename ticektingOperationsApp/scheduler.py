@@ -221,13 +221,13 @@ def freshservice_call_create_ticket():
                         else:
                             print(f"Failed to create ticket, status code: {response.status_code}")
 
-                    return JsonResponse({"message": f"tickets created successfully."}, status=200)
+                    return JsonResponse({"status":"Success", "message": f"tickets created successfully."}, status=200)
 
                 else:
                     latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
 
                     if results[-1]["id"] == latest_existing_id:
-                        return JsonResponse({"message": "Nothing to add"}, status=200)
+                        return JsonResponse({"status":"No new vulnerabilities","message": "Nothing to add"}, status=200)
                     
                     elif results[-1]["id"] > latest_existing_id:
                         new_vulnerabilities = [vul for vul in results if vul["id"] > latest_existing_id]
@@ -411,7 +411,7 @@ def freshservice_call_create_ticket():
                             else:
                                 print(f"Failed to create ticket, status code: {response.status_code}")
 
-                        return JsonResponse({"message": "tickets created successfully."}, status=200)
+                        return JsonResponse({"status":"Success" , "message": "tickets created successfully."}, status=200)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
@@ -422,229 +422,197 @@ def freshservice_call_create_ticket():
                 pass
 
 def updateExploitsAndPatchesForFreshservice():
-    connection = get_connection()
-    if not connection or not connection.is_connected():
-        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
-    
-    with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Freshservice'")
-        ticketing_tools = cursor.fetchall()
+    try:
+        connection = get_connection()
+        if not connection or not connection.is_connected():
+            return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+        
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Freshservice'")
+            ticketing_tools = cursor.fetchall()
 
-        all_tickets = []
+            all_tickets = []
 
-        for tool in ticketing_tools:
-            url = (json.loads((tool.get("values")))).get("url")
-            key = (json.loads((tool.get("values")))).get("key")
-            
-            headers = {
-                "Content-Type":"application/json",
-                "Authorization": f"Basic {key}"
-            }
-
-            try:
-                params = {
-                    "per_page": 100
-                }
-                response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
-
-                if response.status_code == 200:
-                    tickets = response.json().get('tickets', [])
-                    all_tickets.extend(tickets)
-                else:
-                    print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
-            except requests.RequestException as e:
-                print(f"Request failed for {url}: {str(e)}")
-        for ticket in all_tickets:
-            checkTicketId = (TicketingServiceDetails.objects.filter(ticketId = ticket.get("id"))).exists()
-            if checkTicketId == True:
-                vulnerabilityId = (TicketingServiceDetails.objects.get(ticketId = ticket.get("id"))).sq1VulId
-                organizationId = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId, ticketServicePlatform="freshservice")).organizationId
-
-                ticketObj = TicketingServiceDetails.objects.get(ticketId =  ticket.get("id"))
-                exploitsList = ast.literal_eval(ticketObj.exploitsList)
-                patchesList = ast.literal_eval(ticketObj.patchesList)
-
-                cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
-                exploits = cursor.fetchall()
-
-                cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
-                patches = cursor.fetchall()
-                if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-
-                    cursor.execute(f"""
-                    SELECT *
-                    FROM vulnerabilities
-                    WHERE id = {vulnerabilityId};
-                    """)
-                    result = cursor.fetchall()
-
-                    mapped_priority = None
-
-                    risk = float(result[0].get("risk"))
-
-                    if 9.0 <= risk <= 10.0:
-                        mapped_priority = 4
-                    elif 7.0 <= risk <= 8.9:
-                        mapped_priority = 3
-                    elif 4.0 <= risk <= 6.9:
-                        mapped_priority = 2
-                    elif 0.1 <= risk <= 3.9:
-                        mapped_priority = 1
-
-                    cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vulnerabilityId, organizationId))
-                    exploits = cursor.fetchall()
-                    exploitIdList = []
-                    if exploits !=[]:
-                        for exploit in exploits:
-                            exploitIdList.append(exploit.get("id"))
-
-                    cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vulnerabilityId,))
-                    patches = cursor.fetchall()
-                    patchesIdList = []
-                    if patches !=[]:
-                        for patch in patches:
-                            patchesIdList.append(patch.get("id"))
-
-                    resultCVEs = json.loads(result[0].get("CVEs"))
-                    if isinstance(resultCVEs, dict):
-                        cve_list = resultCVEs.get("cves", [])
-                    else:
-                        cve_list = []
-                    cve_string = ", ".join(cve_list)
-                    context = {
-                        'result': {
-                            'CVEs': cve_string,
-                            'severity': result[0].get('severity'),
-                            'first_seen': result[0].get('first_seen'),
-                            'last_identified_on': result[0].get('last_identified_on'),
-                            'patch_priority': result[0].get('patch_priority'),
-                        }
-                    }
-
-                    """
-                    SELECT assetable_type, assetable_id
-                    FROM assetables
-                    WHERE vulnerabilities_id = %s
-                    """, (vulnerabilityId,)
-                    assetables_results = cursor.fetchall()
-
-                    assets = {
-                        "servers": [],
-                        "workstations": []
-                    }
-                    ass_type = []
-                    for i in assetables_results:
-                        ass_type.append(i['assetable_type'])
-
-                    ass_id = []
-                    for i in assetables_results:
-                        ass_id.append(i['assetable_id'])
+            for tool in ticketing_tools:
+                try:
+                    values = json.loads(tool.get("values"))
+                    url = values.get("url")
+                    key = values.get("key")
                     
-                    index = 0
-                    for i in ass_type:
-                        j = ass_id[index]
-                        if i == 'App\\Models\\Workstations':
-                            cursor.execute("""
-                            SELECT host_name, ip_address
-                            FROM workstations
-                            WHERE id = %s AND organization_id = %s
-                            """, (j, organizationId))
-                            workstation = cursor.fetchone()
-                            if workstation:
-                                assets["workstations"].append(workstation)
-                            index = index+1
-                        
-    
-                        if i == 'App\\Models\\Servers':
-                            cursor.execute("""
-                            SELECT host_name, ip_address
-                            FROM workstations
-                            WHERE id = %s AND organization_id = %s
-                            """, (j, organizationId))
-                            server = cursor.fetchone()
-                            if server:
-                                assets["servers"].append(server)
-                            index = index+1
-                
-                    detection_summary_table = render_to_string('detection_summary_table.html', context)
-
-                    remediationContext = {
-                                "solutionPatch":result[0].get("solution_patch"),
-                                "solutionWorkAround":result[0].get("solution_workaround"),
-                                "preventiveMeasure":result[0].get("preventive_measure")
-                            }
-
-                    remediation_table = render_to_string('remedieationTableUpd.html', remediationContext)
-                    exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits}) if exploits else render_to_string('exploits_table.html', {'exploits': None})
-
-                    if patches:
-                        patch_data = []
-                        for patch in patches:
-                            patchSolution = patch.get("solution", "")
-                            patchDescription = patch.get("description", "")
-                            patchComplexity = patch.get("complexity", "")
-                            patchType = patch.get("type", "")
-                            os_list = json.loads(patch.get("os", "[]"))
-                            patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
-
-                            patch_data.append({
-                                'solution': patchSolution,
-                                'description': patchDescription,
-                                'complexity': patchComplexity,
-                                'type': patchType,
-                                'os': patchOs,
-                                'url': patch.get("url", "")
-                            })
-
-                        patchContext = {
-                            'patches': patch_data
-                        }
-                    else:
-                        patchContext = {
-                            'patches': []
-                        }
-
-                    patch_table_html = render_to_string('patch_table.html', patchContext)
-                    workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
-                    servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
-                    vuldesc = result[0].get('description') if result[0].get('description') else "Description not added"
-
-                    combined_data = {
-                            "description": vuldesc + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
-                            "subject": result[0].get('name'),
-                            "email": "ram@freshservice.com",
-                            "priority": 4,
-                            "status": 2,
-                            "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
-                            "workspace_id": 2,
-                            "urgency": 3,
-                        }
-                    url = url+"/api/v2/tickets/"+str((ticket.get("id")))
                     headers = {
                         "Content-Type": "application/json",
                         "Authorization": f"Basic {key}"
                     }
-                    response = requests.put(url, json=combined_data, headers=headers)
-                    # time.sleep(3)
+
+                    params = {"per_page": 100}
+                    response = requests.get(f"{url}/api/v2/tickets", headers=headers, params=params)
+
                     if response.status_code == 200:
-                        newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                        if newPatchIds:
-                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                            newPatchesList = existingPatchIds + newPatchIds
-                            ticket_service_details.patchesList = str(newPatchesList)
-                            ticket_service_details.save()
-                        newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                        if newExploitIds:
-                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = "freshservice")
-                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                            newExploitsList = existingExploitIds + newExploitIds
-                            ticket_service_details.exploitsList = str(newExploitsList)
-                            ticket_service_details.save()
+                        tickets = response.json().get('tickets', [])
+                        all_tickets.extend(tickets)
                     else:
-                        print("some error occured")
-                else:
-                    print("Tickets updated for the ids which had new exploits and patches")
+                        print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
+                        return JsonResponse({
+                            "error": f"Error fetching tickets for {url}",
+                            "status_code": response.status_code,
+                            "message": response.text
+                        }, status=response.status_code)
+
+                except requests.RequestException as e:
+                    print(f"Request failed for {url}: {str(e)}")
+                    return JsonResponse({"error": f"Request failed for {url}: {str(e)}"}, status=500)
+
+            # Processing tickets
+            for ticket in all_tickets:
+                try:
+                    if TicketingServiceDetails.objects.filter(ticketId=ticket.get("id")).exists():
+                        ticket_obj = TicketingServiceDetails.objects.get(ticketId=ticket.get("id"))
+                        vulnerabilityId = ticket_obj.sq1VulId
+                        organizationId = ticket_obj.organizationId
+
+                        # Retrieve existing exploits and patches from the DB
+                        exploits_list = ast.literal_eval(ticket_obj.exploitsList)
+                        patches_list = ast.literal_eval(ticket_obj.patchesList)
+
+                        cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
+                        exploits = cursor.fetchall()
+
+                        cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
+                        patches = cursor.fetchall()
+
+                        if len(patches) > len(patches_list) or len(exploits) > len(exploits_list):
+                            cursor.execute(f"SELECT * FROM vulnerabilities WHERE id = {vulnerabilityId}")
+                            result = cursor.fetchall()
+
+                            if not result:
+                                return JsonResponse({"error": "Vulnerability not found"}, status=404)
+
+                            risk = float(result[0].get("risk"))
+                            mapped_priority = determine_priority(risk)
+
+                            cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vulnerabilityId, organizationId))
+                            exploits = cursor.fetchall()
+
+                            cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vulnerabilityId,))
+                            patches = cursor.fetchall()
+
+                            # Generate required data for the Freshservice update
+                            combined_data = generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches)
+
+                            # Update ticket in Freshservice
+                            update_url = f"{url}/api/v2/tickets/{ticket.get('id')}"
+                            response = requests.put(update_url, json=combined_data, headers=headers)
+
+                            if response.status_code == 200:
+                                update_ticket_details(ticket_obj, patches, exploits, patches_list, exploits_list)
+                            else:
+                                print(f"Error updating Freshservice ticket {ticket.get('id')}: {response.status_code} - {response.text}")
+                                return JsonResponse({
+                                    "error": f"Error updating Freshservice ticket {ticket.get('id')}",
+                                    "status_code": response.status_code,
+                                    "message": response.text
+                                }, status=response.status_code)
+                    else:
+                        print(f"Ticket with ID {ticket.get('id')} does not exist in the local database.")
+
+                except Exception as e:
+                    print(f"Error processing ticket {ticket.get('id')}: {str(e)}")
+                    return JsonResponse({"error": f"Error processing ticket {ticket.get('id')}: {str(e)}"}, status=500)
+
+            return JsonResponse({"message": "Tickets updated successfully"}, status=200)
+
+    except Exception as e:
+        print(f"Unexpected error occurred: {str(e)}")
+        return JsonResponse({"error": f"Unexpected error occurred: {str(e)}"}, status=500)
+
+def determine_priority(risk):
+    if 9.0 <= risk <= 10.0:
+        return 4
+    elif 7.0 <= risk <= 8.9:
+        return 3
+    elif 4.0 <= risk <= 6.9:
+        return 2
+    elif 0.1 <= risk <= 3.9:
+        return 1
+    return None
+
+def generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches):
+    resultCVEs = json.loads(result[0].get("CVEs", "[]"))
+    cve_list = resultCVEs.get("cves", []) if isinstance(resultCVEs, dict) else []
+    cve_string = ", ".join(cve_list)
+
+    context = {
+        'result': {
+            'CVEs': cve_string,
+            'severity': result[0].get('severity'),
+            'first_seen': result[0].get('first_seen'),
+            'last_identified_on': result[0].get('last_identified_on'),
+            'patch_priority': result[0].get('patch_priority'),
+        }
+    }
+
+    # Fetch asset details (workstations and servers)
+    assetables_results = cursor.fetchall()
+    assets = get_assets(cursor, assetables_results, organizationId)
+
+    # Render tables
+    detection_summary_table = render_to_string('detection_summary_table.html', context)
+    remediation_table = render_to_string('remedieationTableUpd.html', {'solutionPatch': result[0].get("solution_patch")})
+    exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits})
+    patch_table_html = render_to_string('patch_table.html', {'patches': patches})
+    workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
+    servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
+
+    descriptionTxt = result[0].get('description') if  result[0].get('description') else "No description added"
+
+    combined_data = {
+        "description": descriptionTxt + detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
+        "subject": result[0].get('name'),
+        "email": "ram@freshservice.com",
+        "priority": 4,
+        "status": 2,
+        "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+        "workspace_id": 2,
+        "urgency": 3,
+    }
+    return combined_data
+
+def update_ticket_details(ticket_obj, patches, exploits, patches_list, exploits_list):
+    new_patch_ids = [patch['id'] for patch in patches if patch['id'] not in patches_list]
+    new_exploit_ids = [exploit['id'] for exploit in exploits if exploit['id'] not in exploits_list]
+
+    if new_patch_ids:
+        existing_patch_ids = ast.literal_eval(ticket_obj.patchesList or '[]')
+        ticket_obj.patchesList = str(existing_patch_ids + new_patch_ids)
+    
+    if new_exploit_ids:
+        existing_exploit_ids = ast.literal_eval(ticket_obj.exploitsList or '[]')
+        ticket_obj.exploitsList = str(existing_exploit_ids + new_exploit_ids)
+
+    ticket_obj.save()
+
+def get_assets(cursor, assetables_results, organizationId):
+    assets = {
+        "servers": [],
+        "workstations": []
+    }
+    ass_type = [i['assetable_type'] for i in assetables_results]
+    ass_id = [i['assetable_id'] for i in assetables_results]
+
+    for i, asset_type in enumerate(ass_type):
+        asset_id = ass_id[i]
+        if asset_type == 'App\\Models\\Workstations':
+            cursor.execute("SELECT host_name, ip_address FROM workstations WHERE id = %s AND organization_id = %s", (asset_id, organizationId))
+            workstation = cursor.fetchone()
+            if workstation:
+                assets["workstations"].append(workstation)
+        elif asset_type == 'App\\Models\\Servers':
+            cursor.execute("SELECT host_name, ip_address FROM servers WHERE id = %s AND organization_id = %s", (asset_id, organizationId))
+            server = cursor.fetchone()
+            if server:
+                assets["servers"].append(server)
+
+    return assets
 
 def jira_call_create_ticket():
     connection = get_connection()
@@ -1278,12 +1246,17 @@ def jira_call_create_ticket():
                     else:
                         print(f"Success! Response status code: {response.status_code}")
                         print(f"Response content: {response.content}")
+
+                return JsonResponse({
+                    "status":"Success",
+                    "message":"Issues created successfully"
+                }, status=200)
             
             else:
                 latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
 
                 if results[-1]["id"] == latest_existing_id:
-                    return JsonResponse({"message": "Nothing to add"}, status=200)
+                    return JsonResponse({"status":"No new vulnerabilities","message": "Nothing to add"}, status=200)
                 
                 elif results[-1]["id"] > latest_existing_id:
                     results = [vul for vul in results if vul["id"] > latest_existing_id]
@@ -1909,10 +1882,10 @@ def jira_call_create_ticket():
                             print(f"Success! Response status code: {response.status_code}")
                             print(f"Response content: {response.content}")
 
-                    
-
-
-
+                    return JsonResponse({
+                    "status":"Success",
+                    "message":"New issues created successfully"
+                }, status=200)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -1923,219 +1896,208 @@ def jira_call_create_ticket():
     
 
 def updateExploitsAndPatchesForJira():
-    connection = get_connection()
-    if not connection or not connection.is_connected():
-        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
-    
-    with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'JIRA'")
-        ticketing_tools = cursor.fetchall()
+    try:
+        connection = get_connection()
+        if not connection or not connection.is_connected():
+            return JsonResponse({"error": "Failed to connect to the database"}, status=500)
 
-        all_tickets = []
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'JIRA'")
+            ticketing_tools = cursor.fetchall()
 
-        for tool in ticketing_tools:
-            url = ((json.loads(tool.get("values"))).get('url')) + "/rest/api/3/search"
-            key = (json.loads(tool.get("values"))).get('password')
-            boardName = (json.loads(tool.get("values"))).get('board')
+            if not ticketing_tools:
+                return JsonResponse({"status": "No JIRA tools found"}, status=404)
 
-            headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {key}"
-                    }
-            
-            try:
-                username = (json.loads(tool.get("values"))).get('username')
-                password = key
-                params={
+            all_tickets = []
+
+            for tool in ticketing_tools:
+                url = ((json.loads(tool.get("values"))).get('url')) + "/rest/api/3/search"
+                key = (json.loads(tool.get("values"))).get('password')
+                boardName = (json.loads(tool.get("values"))).get('board')
+
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {key}"
+                }
+
+                try:
+                    username = (json.loads(tool.get("values"))).get('username')
+                    password = key
+                    params = {
                         "maxResults": 1000
                     }
-                response = requests.get(url, headers = headers,auth=HTTPBasicAuth(username, password),params=params)
-                if response.status_code == 200:
-                    for response in response.json()['issues']:
-                        issue_key = response.get("key")
-                        issueId = int(((response.get("key")).split('-')[1]))
-                        checkIssueIdInTicketingService = (TicketingServiceDetails.objects.filter(ticketId = issueId)).exists()
-                        if checkIssueIdInTicketingService==True:
-                            vulnerabilityId = (TicketingServiceDetails.objects.get(ticketId = issueId)).sq1VulId
-                            organizationId = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId,ticketServicePlatform = "jira")).organizationId
+                    response = requests.get(url, headers=headers, auth=HTTPBasicAuth(username, password), params=params)
 
-                            ticketObj = TicketingServiceDetails.objects.get(ticketId =issueId)
-                            exploitsList = ast.literal_eval(ticketObj.exploitsList)
-                            patchesList = ast.literal_eval(ticketObj.patchesList)
+                    if response.status_code == 200:
+                        for issue in response.json()['issues']:
+                            issue_key = issue.get("key")
+                            issueId = int((issue.get("key").split('-')[1]))
+                            checkIssueIdInTicketingService = TicketingServiceDetails.objects.filter(ticketId=issueId).exists()
 
-                            cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
-                            exploits = cursor.fetchall()
+                            if checkIssueIdInTicketingService:
+                                ticketObj = TicketingServiceDetails.objects.get(ticketId=issueId)
+                                vulnerabilityId = ticketObj.sq1VulId
+                                print(vulnerabilityId)
+                                organizationId = ticketObj.organizationId
 
-                            cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
-                            patches = cursor.fetchall()
+                                exploitsList = ast.literal_eval(ticketObj.exploitsList)
+                                patchesList = ast.literal_eval(ticketObj.patchesList)
 
-                            cursor.execute(f"""
-                            SELECT *
-                            FROM vulnerabilities
-                            WHERE id = {vulnerabilityId};
-                            """)
-                            vulnerabilityResult = cursor.fetchall()
+                                cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
+                                exploits = cursor.fetchall()
 
-                            if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                                # newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                                # if newPatchIds:
-                                #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
-                                #     existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                #     newPatchesList = existingPatchIds + newPatchIds
-                                #     ticket_service_details.patchesList = str(newPatchesList)
-                                #     ticket_service_details.save()
-                                # newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                                # if newExploitIds:
-                                #     ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
-                                #     existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                #     newExploitsList = existingExploitIds + newExploitIds
-                                #     ticket_service_details.exploitsList = str(newExploitsList)
-                                #     ticket_service_details.save()
+                                cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
+                                patches = cursor.fetchall()
 
-                                vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
+                                cursor.execute(f"SELECT * FROM vulnerabilities WHERE id = {vulnerabilityId}")
+                                vulnerabilityResult = cursor.fetchall()
 
-                                vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
+                                if not vulnerabilityResult:
+                                    continue  # Skip if no vulnerability found
 
-                                # Detection Summary
-                                cves = json.loads(vulnerabilityResult[0]["CVEs"])
-                                cves_string = ", ".join(cves["cves"])
-                                detectionSummaryObj = {
-                                    "CVE": cves_string,
-                                    "Severity": vulnerabilityResult[0]["severity"],
-                                    "first_identified_on": vulnerabilityResult[0]["first_seen"],
-                                    "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
-                                    "patch_priority":vulnerabilityResult[0]["patch_priority"]
-                                    }
-                                listOfDetection = [detectionSummaryObj]
+                                if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
+                                    vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
-                                def convert_datetime_to_string(data):
-                                    for item in data:
-                                        for key, value in item.items():
-                                            if isinstance(value, datetime):
-                                                item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                                    return data
-                                
-                                listOfDetection = convert_datetime_to_string(listOfDetection)
+                                    vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
 
-                                for detection in listOfDetection:
-                                    for key, value in detection.items():
-                                        if value is None:
-                                            detection[key] = "NA"
-
-                                # Remediation Summary
-                                remediationObj = {
-                                        "solution_patch": vulnerabilityResult[0]["solution_patch"],
-                                        "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
-                                        "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                    # Detection Summary
+                                    cves = json.loads(vulnerabilityResult[0]["CVEs"])
+                                    cves_string = ", ".join(cves["cves"])
+                                    detectionSummaryObj = {
+                                        "CVE": cves_string,
+                                        "Severity": vulnerabilityResult[0]["severity"],
+                                        "first_identified_on": vulnerabilityResult[0]["first_seen"],
+                                        "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
+                                        "patch_priority":vulnerabilityResult[0]["patch_priority"]
                                         }
-                                listOfRemediation = [remediationObj]
+                                    listOfDetection = [detectionSummaryObj]
 
-                                def convert_none(data):
-                                    for remediation in listOfRemediation:
-                                        for key, value in remediation.items():
+                                    def convert_datetime_to_string(data):
+                                        for item in data:
+                                            for key, value in item.items():
+                                                if isinstance(value, datetime):
+                                                    item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                                        return data
+                                    
+                                    listOfDetection = convert_datetime_to_string(listOfDetection)
+
+                                    for detection in listOfDetection:
+                                        for key, value in detection.items():
                                             if value is None:
-                                                remediation[key]="NA"
-                                    return data
+                                                detection[key] = "NA"
 
-                                listOfRemediation = convert_none(listOfRemediation)
-                                
+                                    # Remediation Summary
+                                    remediationObj = {
+                                            "solution_patch": vulnerabilityResult[0]["solution_patch"],
+                                            "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
+                                            "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                            }
+                                    listOfRemediation = [remediationObj]
 
-                                # workstations and servers
-                                cursor.execute("""
-                                SELECT assetable_type, assetable_id
-                                FROM assetables
-                                WHERE vulnerabilities_id = %s
-                                """, (vulnerabilityId,))
-                                assetables_results = cursor.fetchall()
+                                    def convert_none(data):
+                                        for remediation in listOfRemediation:
+                                            for key, value in remediation.items():
+                                                if value is None:
+                                                    remediation[key]="NA"
+                                        return data
 
-                                assets = {
-                                    "servers": [],
-                                    "workstations": []
-                                }
-                                ass_type = []
-                                for i in assetables_results:
-                                    ass_type.append(i['assetable_type'])
-
-                                ass_id = []
-                                for i in assetables_results:
-                                    ass_id.append(i['assetable_id'])
-
-                                index = 0
-                                for i in ass_type:
-                                    j = ass_id[index]
-                                    if i == 'App\\Models\\Workstations':
-                                        cursor.execute("""
-                                        SELECT host_name, ip_address
-                                        FROM workstations
-                                        WHERE id = %s AND organization_id = %s
-                                        """, (j, organizationId))
-                                        workstation = cursor.fetchone()
-                                        if workstation:
-                                            assets["workstations"].append(workstation)
-                                        index = index+1
+                                    listOfRemediation = convert_none(listOfRemediation)
                                     
 
-                                    if i == 'App\\Models\\Servers':
-                                        cursor.execute("""
-                                        SELECT host_name, ip_address
-                                        FROM workstations
-                                        WHERE id = %s AND organization_id = %s
-                                        """, (j, organizationId))
-                                        server = cursor.fetchone()
-                                        if server:
-                                            assets["servers"].append(server)
-                                        index = index+1
-                                
-                                workstations = assets['workstations']
+                                    # workstations and servers
+                                    cursor.execute("""
+                                    SELECT assetable_type, assetable_id
+                                    FROM assetables
+                                    WHERE vulnerabilities_id = %s
+                                    """, (vulnerabilityId,))
+                                    assetables_results = cursor.fetchall()
 
-                                def convert_none_workstations(data):
-                                    for workstation in workstations:
-                                        for key, value in workstation.items():
-                                            if value is None:
-                                                workstation[key]="NA"
-                                    return data
+                                    assets = {
+                                        "servers": [],
+                                        "workstations": []
+                                    }
+                                    ass_type = []
+                                    for i in assetables_results:
+                                        ass_type.append(i['assetable_type'])
 
-                                workstations = convert_none_workstations(workstations)
+                                    ass_id = []
+                                    for i in assetables_results:
+                                        ass_id.append(i['assetable_id'])
 
-                                servers = assets['servers']
+                                    index = 0
+                                    for i in ass_type:
+                                        j = ass_id[index]
+                                        if i == 'App\\Models\\Workstations':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            workstation = cursor.fetchone()
+                                            if workstation:
+                                                assets["workstations"].append(workstation)
+                                            index = index+1
+                                        
 
-                                def convert_none_servers(data):
-                                    for server in servers:
-                                        for key, value in server.items():
-                                            if value is None:
-                                                server[key]="NA"
-                                    return data
+                                        if i == 'App\\Models\\Servers':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            server = cursor.fetchone()
+                                            if server:
+                                                assets["servers"].append(server)
+                                            index = index+1
+                                    
+                                    workstations = assets['workstations']
 
-                                servers = convert_none_servers(servers)
+                                    def convert_none_workstations(data):
+                                        for workstation in workstations:
+                                            for key, value in workstation.items():
+                                                if value is None:
+                                                    workstation[key]="NA"
+                                        return data
 
-                                # exploits and patches
+                                    workstations = convert_none_workstations(workstations)
 
-                                allExploits = exploits
-                                def convert_none_for_exploits(data):
-                                    for exploit in allExploits:
-                                        for key, value in exploit.items():
-                                            if value is None:
-                                                exploit[key]="NA"
-                                    return data
-                                allExploits = convert_none_for_exploits(allExploits)
-                                allPatches = [
-                                    {
-                                        **patch,
-                                        'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
-                                    } for patch in patches
-                                ]
+                                    servers = assets['servers']
+
+                                    def convert_none_servers(data):
+                                        for server in servers:
+                                            for key, value in server.items():
+                                                if value is None:
+                                                    server[key]="NA"
+                                        return data
+
+                                    servers = convert_none_servers(servers)
+
+                                    # exploits and patches
+
+                                    allExploits = exploits
+                                    def convert_none_for_exploits(data):
+                                        for exploit in allExploits:
+                                            for key, value in exploit.items():
+                                                if value is None:
+                                                    exploit[key]="NA"
+                                        return data
+                                    allExploits = convert_none_for_exploits(allExploits)
+                                    allPatches = [
+                                        {
+                                            **patch,
+                                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
+                                        } for patch in patches
+                                    ]
 
 
-                                def convert_none_for_patches(data):
-                                    for patch in allPatches:
-                                        for key, value in patch.items():
-                                            if value is None:
-                                                patch[key]="NA"
-                                    return data
-                                allPatches = convert_none_for_patches(allPatches)
-
-
-                                combined_data = {
+                                    def convert_none_for_patches(data):
+                                        for patch in allPatches:
+                                            for key, value in patch.items():
+                                                if value is None:
+                                                    patch[key]="NA"
+                                        return data
+                                    allPatches = convert_none_for_patches(allPatches)
+                                    combined_data = {
                                         "fields": {
                                             "project": {
                                                 "key":boardName
@@ -2488,39 +2450,45 @@ def updateExploitsAndPatchesForJira():
                                     }
 
 
+                                    patchUrl = (json.loads(tool.get("values"))).get("url") + f"/rest/api/3/issue/{issue_key}"
+                                    response = requests.put(patchUrl,
+                                                            data=json.dumps(combined_data),
+                                                            headers=headers,
+                                                            auth=HTTPBasicAuth(username, password))
 
+                                    if response.status_code == 204:
+                                        newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                        if newPatchIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
+                                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                            newPatchesList = existingPatchIds + newPatchIds
+                                            ticket_service_details.patchesList = str(newPatchesList)
+                                            ticket_service_details.save()
 
-                                headers = {
-                                    "Content-Type": "application/json",
-                                    "Authorization": f"Bearer {key}"
-                                }
+                                        newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                        if newExploitIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
+                                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                            newExploitsList = existingExploitIds + newExploitIds
+                                            ticket_service_details.exploitsList = str(newExploitsList)
+                                            ticket_service_details.save()
 
-                                response = requests.put(f"{url}/rest/api/3/issue/{issue_key}",data=json.dumps(combined_data), headers = headers,auth=HTTPBasicAuth(username, password))
-                                # time.sleep(3)
-                                if response.status_code == 204:
-                                    newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                                    if newPatchIds:
-                                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'jira')
-                                        existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                        newPatchesList = existingPatchIds + newPatchIds
-                                        ticket_service_details.patchesList = str(newPatchesList)
-                                        ticket_service_details.save()
-                                    newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                                    if newExploitIds:
-                                        ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'jira')
-                                        existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                        newExploitsList = existingExploitIds + newExploitIds
-                                        ticket_service_details.exploitsList = str(newExploitsList)
-                                        ticket_service_details.save()
                                     else:
-                                        continue
-                                
-                            else:
-                                print("No exploits or patches to update")
+                                        return JsonResponse({"error": "Failed to update JIRA issue", "status_code": response.status_code}, status=500)
+                                else:
+                                    return JsonResponse({"status": "Success", "message": "No new exploits or patches"}, status=200)
 
-            except Exception as e:
-                return JsonResponse({})
-            
+                    else:
+                        return JsonResponse({"error": "Failed to fetch JIRA issues", "status_code": response.status_code}, status=500)
+
+                except requests.exceptions.RequestException as e:
+                    return JsonResponse({"error": "Error communicating with JIRA", "message": str(e)}, status=500)
+
+        return JsonResponse({"status": "Success", "message": "Exploits and patches updated for the respective tickets"}, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": "An error occurred", "message": str(e)}, status=500)
+           
 # def changeVulnerabilityStatusForFreshService():
 #     connection = get_connection()
 #     if not connection or not connection.is_connected():
@@ -2980,12 +2948,13 @@ def createCardInTrello():
                         print(f"Timeout error occurred: {timeout_err}")
                     except requests.exceptions.RequestException as req_err:
                         print(f"An error occurred: {req_err}")
+                return JsonResponse({"status":"Success","message": "Cards created successfully"}, status=200)
             
             else:
                 latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
 
                 if results[-1]["id"] == latest_existing_id:
-                    return JsonResponse({"message": "Nothing to add"}, status=200)
+                    return JsonResponse({"status":"No new vulnerabilities","message": "Nothing to add"}, status=200)
                 
                 elif results[-1]["id"] > latest_existing_id:
                     results = [vul for vul in results if vul["id"] > latest_existing_id]
@@ -3363,6 +3332,7 @@ def createCardInTrello():
                             print(f"An error occurred: {req_err}")
                         else:
                             print("")
+                    return JsonResponse({"status":"Success","message": "New issues added"}, status=200)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -3376,326 +3346,319 @@ def updateExploitsAndPatchesForTrello():
     if not connection or not connection.is_connected():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
-    with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Trello'")
-        ticketing_tools = cursor.fetchall()
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Trello'")
+            ticketing_tools = cursor.fetchall()
 
-        all_tickets = []
+            if not ticketing_tools:
+                return JsonResponse({"message": "No Trello ticketing tools found"}, status=404)
 
-        for tool in ticketing_tools:
-            url = (json.loads(tool.get("values"))).get("url")
-            trelloKey = (json.loads(tool.get("values"))).get("key")
-            token = (json.loads(tool.get("values"))).get("token")
-            idList = (json.loads(tool.get("values"))).get("listid")
+            all_tickets = []
 
-            try:
-                url = f'https://api.trello.com/1/lists/{idList}/cards'
-                params = {
-                    'key': trelloKey,
-                    'token': token
-                }
+            for tool in ticketing_tools:
+                try:
+                    url = (json.loads(tool.get("values"))).get("url")
+                    trelloKey = (json.loads(tool.get("values"))).get("key")
+                    token = (json.loads(tool.get("values"))).get("token")
+                    idList = (json.loads(tool.get("values"))).get("listid")
 
-                responses = requests.get(url, params=params)
-                if responses.status_code == 200:
-                    data = responses.json()
-                    for response in data:
-                        cardId = response.get("id")
-                        checkCarIdInTicketingService = (TicketingServiceDetails.objects.filter(ticketIdIfString = cardId)).exists()
-                        if checkCarIdInTicketingService==True:
-                            vulnerabilityId = (TicketingServiceDetails.objects.get(ticketIdIfString = cardId)).sq1VulId
-                            organizationId = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId,ticketServicePlatform = "trello")).organizationId
+                    url = f'https://api.trello.com/1/lists/{idList}/cards'
+                    params = {
+                        'key': trelloKey,
+                        'token': token
+                    }
 
-                            ticketObj = TicketingServiceDetails.objects.get(ticketIdIfString =cardId)
-                            exploitsList = ast.literal_eval(ticketObj.exploitsList)
-                            patchesList = ast.literal_eval(ticketObj.patchesList)
+                    responses = requests.get(url, params=params)
 
-                            cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
-                            exploits = cursor.fetchall()
+                    if responses.status_code == 200:
+                        data = responses.json()
+                        for response in data:
+                            cardId = response.get("id")
+                            if TicketingServiceDetails.objects.filter(ticketIdIfString=cardId).exists():
+                                ticketObj = TicketingServiceDetails.objects.get(ticketIdIfString=cardId)
+                                vulnerabilityId = ticketObj.sq1VulId
+                                print(vulnerabilityId)
+                                organizationId = ticketObj.organizationId
+                                exploitsList = ast.literal_eval(ticketObj.exploitsList)
+                                patchesList = ast.literal_eval(ticketObj.patchesList)
 
-                            cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
-                            patches = cursor.fetchall()
+                                cursor.execute(f"SELECT * FROM exploits WHERE vul_id = {vulnerabilityId}")
+                                exploits = cursor.fetchall()
 
-                            cursor.execute(f"""
-                            SELECT *
-                            FROM vulnerabilities
-                            WHERE id = {vulnerabilityId};
-                            """)
-                            vulnerabilityResult = cursor.fetchall()
+                                cursor.execute(f"SELECT * FROM patch WHERE vul_id = {vulnerabilityId}")
+                                patches = cursor.fetchall()
 
-                            if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
+                                cursor.execute(f"SELECT * FROM vulnerabilities WHERE id = {vulnerabilityId};")
+                                vulnerabilityResult = cursor.fetchall()
 
-                                vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
-
-                                vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
-
-                                # Detection Summary
-                                cves = json.loads(vulnerabilityResult[0]["CVEs"])
-                                cves_string = ", ".join(cves["cves"])
-                                detectionSummaryObj = {
-                                    "CVE": cves_string,
-                                    "Severity": vulnerabilityResult[0]["severity"],
-                                    "first_identified_on": vulnerabilityResult[0]["first_seen"],
-                                    "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
-                                    "patch_priority":vulnerabilityResult[0]["patch_priority"]
-                                    }
-                                listOfDetection = [detectionSummaryObj]
-
-                                def convert_datetime_to_string(data):
-                                    for item in data:
-                                        for key, value in item.items():
-                                            if isinstance(value, datetime):
-                                                item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                                    return data
-                                
-                                listOfDetection = convert_datetime_to_string(listOfDetection)
-
-                                for detection in listOfDetection:
-                                    for key, value in detection.items():
-                                        if value is None:
-                                            detection[key] = "NA"
-
-                                # Remediation Summary
-                                remediationObj = {
-                                        "solution_patch": vulnerabilityResult[0]["solution_patch"],
-                                        "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
-                                        "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
+                                    vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] else "Description not added"
+                                    vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] else "Description not added"
+                                    
+                                    cves = (vulnerabilityResult[0]).get("CVEs")
+                                    cves_string = ", ".join(json.loads(cves)["cves"])
+                                    detectionSummaryObj = {
+                                        "CVE": cves_string,
+                                        "Severity": vulnerabilityResult[0]["severity"],
+                                        "first_identified_on": vulnerabilityResult[0]["first_seen"],
+                                        "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
+                                        "patch_priority":vulnerabilityResult[0]["patch_priority"]
                                         }
-                                listOfRemediation = [remediationObj]
+                                    listOfDetection = [detectionSummaryObj]
 
-                                def convert_none(data):
-                                    for remediation in listOfRemediation:
-                                        for key, value in remediation.items():
+                                    def convert_datetime_to_string(data):
+                                        for item in data:
+                                            for key, value in item.items():
+                                                if isinstance(value, datetime):
+                                                    item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                                        return data
+                                    
+                                    listOfDetection = convert_datetime_to_string(listOfDetection)
+
+                                    for detection in listOfDetection:
+                                        for key, value in detection.items():
                                             if value is None:
-                                                remediation[key]="NA"
-                                    return data
+                                                detection[key] = "NA"
 
-                                listOfRemediation = convert_none(listOfRemediation)
-                                
+                                    # Remediation Summary
+                                    remediationObj = {
+                                            "solution_patch": vulnerabilityResult[0]["solution_patch"],
+                                            "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
+                                            "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                            }
+                                    listOfRemediation = [remediationObj]
 
-                                # workstations and servers
-                                cursor.execute("""
-                                SELECT assetable_type, assetable_id
-                                FROM assetables
-                                WHERE vulnerabilities_id = %s
-                                """, (vulnerabilityId,))
-                                assetables_results = cursor.fetchall()
+                                    def convert_none(data):
+                                        for remediation in listOfRemediation:
+                                            for key, value in remediation.items():
+                                                if value is None:
+                                                    remediation[key]="NA"
+                                        return data
 
-                                assets = {
-                                    "servers": [],
-                                    "workstations": []
-                                }
-                                ass_type = []
-                                for i in assetables_results:
-                                    ass_type.append(i['assetable_type'])
-
-                                ass_id = []
-                                for i in assetables_results:
-                                    ass_id.append(i['assetable_id'])
-
-                                index = 0
-                                for i in ass_type:
-                                    j = ass_id[index]
-                                    if i == 'App\\Models\\Workstations':
-                                        cursor.execute("""
-                                        SELECT host_name, ip_address
-                                        FROM workstations
-                                        WHERE id = %s AND organization_id = %s
-                                        """, (j, organizationId))
-                                        workstation = cursor.fetchone()
-                                        if workstation:
-                                            assets["workstations"].append(workstation)
-                                        index = index+1
+                                    listOfRemediation = convert_none(listOfRemediation)
                                     
 
-                                    if i == 'App\\Models\\Servers':
-                                        cursor.execute("""
-                                        SELECT host_name, ip_address
-                                        FROM workstations
-                                        WHERE id = %s AND organization_id = %s
-                                        """, (j, organizationId))
-                                        server = cursor.fetchone()
-                                        if server:
-                                            assets["servers"].append(server)
-                                        index = index+1
-                                
-                                workstations = assets['workstations']
+                                    # workstations and servers
+                                    cursor.execute("""
+                                    SELECT assetable_type, assetable_id
+                                    FROM assetables
+                                    WHERE vulnerabilities_id = %s
+                                    """, (vulnerabilityId,))
+                                    assetables_results = cursor.fetchall()
 
-                                def convert_none_workstations(data):
-                                    for workstation in workstations:
-                                        for key, value in workstation.items():
-                                            if value is None:
-                                                workstation[key]="NA"
-                                    return data
+                                    assets = {
+                                        "servers": [],
+                                        "workstations": []
+                                    }
+                                    ass_type = []
+                                    for i in assetables_results:
+                                        ass_type.append(i['assetable_type'])
 
-                                workstations = convert_none_workstations(workstations)
+                                    ass_id = []
+                                    for i in assetables_results:
+                                        ass_id.append(i['assetable_id'])
 
-                                servers = assets['servers']
+                                    index = 0
+                                    for i in ass_type:
+                                        j = ass_id[index]
+                                        if i == 'App\\Models\\Workstations':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            workstation = cursor.fetchone()
+                                            if workstation:
+                                                assets["workstations"].append(workstation)
+                                            index = index+1
+                                        
 
-                                def convert_none_servers(data):
-                                    for server in servers:
-                                        for key, value in server.items():
-                                            if value is None:
-                                                server[key]="NA"
-                                    return data
+                                        if i == 'App\\Models\\Servers':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            server = cursor.fetchone()
+                                            if server:
+                                                assets["servers"].append(server)
+                                            index = index+1
+                                    
+                                    workstations = assets['workstations']
 
-                                servers = convert_none_servers(servers)
+                                    def convert_none_workstations(data):
+                                        for workstation in workstations:
+                                            for key, value in workstation.items():
+                                                if value is None:
+                                                    workstation[key]="NA"
+                                        return data
 
-                                # exploits and patches
+                                    workstations = convert_none_workstations(workstations)
 
-                                allExploits = exploits
-                                def convert_none_for_exploits(data):
-                                    for exploit in allExploits:
-                                        for key, value in exploit.items():
-                                            if value is None:
-                                                exploit[key]="NA"
-                                    return data
-                                allExploits = convert_none_for_exploits(allExploits)
-                                allPatches = [
-                                    {
-                                        **patch,
-                                        'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
-                                    } for patch in patches
-                                ]
+                                    servers = assets['servers']
+
+                                    def convert_none_servers(data):
+                                        for server in servers:
+                                            for key, value in server.items():
+                                                if value is None:
+                                                    server[key]="NA"
+                                        return data
+
+                                    servers = convert_none_servers(servers)
+
+                                    # exploits and patches
+
+                                    allExploits = exploits
+                                    def convert_none_for_exploits(data):
+                                        for exploit in allExploits:
+                                            for key, value in exploit.items():
+                                                if value is None:
+                                                    exploit[key]="NA"
+                                        return data
+                                    allExploits = convert_none_for_exploits(allExploits)
+                                    allPatches = [
+                                        {
+                                            **patch,
+                                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
+                                        } for patch in patches
+                                    ]
 
 
-                                def convert_none_for_patches(data):
-                                    for patch in allPatches:
-                                        for key, value in patch.items():
-                                            if value is None:
-                                                patch[key]="NA"
-                                    return data
-                                allPatches = convert_none_for_patches(allPatches)
+                                    def convert_none_for_patches(data):
+                                        for patch in allPatches:
+                                            for key, value in patch.items():
+                                                if value is None:
+                                                    patch[key]="NA"
+                                        return data
+                                    allPatches = convert_none_for_patches(allPatches)
 
-                                def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
+                                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
 
-                                    # Adding the vulnerability description at the top with a prominent title
-                                    vulnerability_section = f"# **{vulnerability_description}**\n\n"
+                                        # Adding the vulnerability description at the top with a prominent title
+                                        vulnerability_section = f"# **{vulnerability_description}**\n\n"
 
-                                    # Detection section with subheadings for each detection
-                                    detection_section = "## Detection Summary\n\n"
-                                    if listOfDetection:
-                                        for i, detection in enumerate(listOfDetection, 1):
-                                            detection_section += f"### Detection {i} \n\n"
-                                            detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
-                                            detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
-                                            detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
-                                            detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
-                                            detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
-                                            detection_section += "---\n\n"  # Add a horizontal rule to separate detections
-                                    else:
-                                        detection_section += "_No detections found._\n\n"
+                                        # Detection section with subheadings for each detection
+                                        detection_section = "## Detection Summary\n\n"
+                                        if listOfDetection:
+                                            for i, detection in enumerate(listOfDetection, 1):
+                                                detection_section += f"### Detection {i} \n\n"
+                                                detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
+                                                detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
+                                                detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
+                                                detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
+                                                detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
+                                                detection_section += "---\n\n"  # Add a horizontal rule to separate detections
+                                        else:
+                                            detection_section += "_No detections found._\n\n"
 
-                                    # Remediation section with subheadings for each remediation
-                                    remediation_section = "## Remediation Steps\n\n"
-                                    if listOfRemediation:
-                                        for i, remediation in enumerate(listOfRemediation, 1):
-                                            remediation_section += f"### Remediation {i} \n\n"
-                                            remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
-                                            remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
-                                            remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
-                                            remediation_section += "---\n\n"  # Horizontal rule between items
-                                    else:
-                                        remediation_section += "_No remediation steps available._\n\n"
+                                        # Remediation section with subheadings for each remediation
+                                        remediation_section = "## Remediation Steps\n\n"
+                                        if listOfRemediation:
+                                            for i, remediation in enumerate(listOfRemediation, 1):
+                                                remediation_section += f"### Remediation {i} \n\n"
+                                                remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
+                                                remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
+                                                remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
+                                                remediation_section += "---\n\n"  # Horizontal rule between items
+                                        else:
+                                            remediation_section += "_No remediation steps available._\n\n"
 
-                                    # Exploits section with clear divisions for each exploit
-                                    exploit_section = "## Exploits\n\n"
-                                    if allExploits:
-                                        for i, exploit in enumerate(allExploits, 1):
-                                            exploit_section += f"### Exploit {i} \n\n"
-                                            exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
-                                            exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
-                                            exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
-                                            exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
-                                            exploit_section += "---\n\n"  # Horizontal rule between exploits
-                                    else:
-                                        exploit_section += "_No exploits found._\n\n"
+                                        # Exploits section with clear divisions for each exploit
+                                        exploit_section = "## Exploits\n\n"
+                                        if allExploits:
+                                            for i, exploit in enumerate(allExploits, 1):
+                                                exploit_section += f"### Exploit {i} \n\n"
+                                                exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
+                                                exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
+                                                exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
+                                                exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
+                                                exploit_section += "---\n\n"  # Horizontal rule between exploits
+                                        else:
+                                            exploit_section += "_No exploits found._\n\n"
 
-                                    # Patches section with clear divisions for each patch
-                                    patch_section = "## Patches\n\n"
-                                    if allPatches:
-                                        for i, patch in enumerate(allPatches, 1):
-                                            patch_section += f"### Patch {i} \n\n"
-                                            patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
-                                            patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
-                                            patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
-                                            patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
-                                            patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
-                                            patch_section += "---\n\n"  # Horizontal rule between patches
-                                    else:
-                                        patch_section += "_No patches available._\n\n"
+                                        # Patches section with clear divisions for each patch
+                                        patch_section = "## Patches\n\n"
+                                        if allPatches:
+                                            for i, patch in enumerate(allPatches, 1):
+                                                patch_section += f"### Patch {i} \n\n"
+                                                patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
+                                                patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
+                                                patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
+                                                patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
+                                                patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
+                                                patch_section += "---\n\n"  # Horizontal rule between patches
+                                        else:
+                                            patch_section += "_No patches available._\n\n"
 
-                                    # Workstation section with detailed lists
-                                    workstation_section = "## Workstations\n\n"
-                                    if workstations:
-                                        for i, workstation in enumerate(workstations, 1):
-                                            workstation_section += f"### Workstation {i} \n\n"
-                                            workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
-                                            workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
-                                            workstation_section += "---\n\n"
-                                    else:
-                                        workstation_section += "_No workstations found._\n\n"
+                                        # Workstation section with detailed lists
+                                        workstation_section = "## Workstations\n\n"
+                                        if workstations:
+                                            for i, workstation in enumerate(workstations, 1):
+                                                workstation_section += f"### Workstation {i} \n\n"
+                                                workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
+                                                workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
+                                                workstation_section += "---\n\n"
+                                        else:
+                                            workstation_section += "_No workstations found._\n\n"
 
-                                    # Server section with detailed lists
-                                    server_section = "## Servers\n\n"
-                                    if servers:
-                                        for i, server in enumerate(servers, 1):
-                                            server_section += f"### Server {i} \n\n"
-                                            server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
-                                            server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
-                                            server_section += "---\n\n"
-                                    else:
-                                        server_section += "_No servers found._\n\n"
-
-                                    # Combine all sections
-                                    description = (
-                                        vulnerability_section +
-                                        detection_section +
-                                        remediation_section +
-                                        exploit_section +
-                                        patch_section +
-                                        workstation_section +
-                                        server_section
+                                        # Server section with detailed lists
+                                        server_section = "## Servers\n\n"
+                                        if servers:
+                                            for i, server in enumerate(servers, 1):
+                                                server_section += f"### Server {i} \n\n"
+                                                server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
+                                                server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
+                                                server_section += "---\n\n"
+                                        else:
+                                            server_section += "_No servers found._\n\n"
+                                    
+                                    description = format_trello_description(
+                                        listOfDetection, listOfRemediation, allExploits, 
+                                        allPatches, workstations, servers, 
+                                        vulnerability_description, vulnerabilityId
                                     )
 
-                                    return description
+                                    query = {
+                                        'key': trelloKey,
+                                        'token': token,
+                                        'idList': idList, 
+                                        "name": vulnerability_name,
+                                        'desc': description
+                                    }
 
-                                description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vulnerabilityId)
-
-
-                                query = {
-                                    'key': trelloKey,
-                                    'token': token,
-                                    'idList': idList, 
-                                    "name": vulnerabilityResult[0]['name'],
-                                    'desc': description
-                                }
-                                putUrl = f"https://api.trello.com/1/cards/{cardId}"
-                                
-                                try:
+                                    putUrl = f"https://api.trello.com/1/cards/{cardId}"
                                     response = requests.put(putUrl, params=query)
-                                    if response.status_code==200:
+
+                                    if response.status_code == 200:
                                         newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
                                         if newPatchIds:
-                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform = 'trello')
-                                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                            newPatchesList = existingPatchIds + newPatchIds
-                                            ticket_service_details.patchesList = str(newPatchesList)
-                                            ticket_service_details.save()
+                                            ticketObj.patchesList = str(patchesList + newPatchIds)
+                                            ticketObj.save()
+
                                         newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
                                         if newExploitIds:
-                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId,ticketServicePlatform = 'trello')
-                                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                            newExploitsList = existingExploitIds + newExploitIds
-                                            ticket_service_details.exploitsList = str(newExploitsList)
-                                            ticket_service_details.save()
+                                            ticketObj.exploitsList = str(exploitsList + newExploitIds)
+                                            ticketObj.save()
+                                    else:
+                                        return JsonResponse({"error": f"Failed to update Trello card for vulnerability {vulnerabilityId}"}, status=response.status_code)
+                                else:
+                                    return JsonResponse({"message": "No new exploits or patches in any of the cards"}, status=200)
 
-                                except Exception as e:
-                                    print(e)
+                    else:
+                        return JsonResponse({"error": f"Failed to fetch Trello cards, status code: {responses.status_code}"}, status=responses.status_code)
 
+                except Exception as e:
+                    return JsonResponse({"error": f"Error processing Trello tool: {str(e)}"}, status=500)
 
-            except Exception as e:
-                print(e)
+        return JsonResponse({"message": "Trello cards updated successfully"}, status=200)
 
+    except Exception as e:
+        return JsonResponse({"error": f"Failed to process request: {str(e)}"}, status=500)
+
+    finally:
+        if connection.is_connected():
+            connection.close()
 
 
 
@@ -3708,12 +3671,12 @@ def start_scheduler():
     start_hour = 12
     start_minute = 0
 
-    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
-    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
-    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
-    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
-    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
-    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
 
     scheduler.start()
 

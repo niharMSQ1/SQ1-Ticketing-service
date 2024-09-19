@@ -172,9 +172,7 @@ def delete_all_tickets_freshservice(request):
 def createTicketManuallyJira(request):
     from .scheduler import jira_call_create_ticket
     req = jira_call_create_ticket()
-    return JsonResponse({
-        "message":"hello world"
-    })
+    return JsonResponse(json.loads(req._container[0]))
 
 
 @csrf_exempt
@@ -183,9 +181,7 @@ def createTicketManuallyJira(request):
 def createTicketManuallyForFreshservice(request):
     from .scheduler import freshservice_call_create_ticket
     req = freshservice_call_create_ticket()
-    return JsonResponse({
-        "message":"hello world"
-    })
+    return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
 @api_view(['GET'])
@@ -193,9 +189,7 @@ def createTicketManuallyForFreshservice(request):
 def updateTicketManuallyForFreshService(request):
     from .scheduler import updateExploitsAndPatchesForFreshservice
     req = updateExploitsAndPatchesForFreshservice()
-    return JsonResponse({
-        "message":"hello world"
-    })
+    return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
 @api_view(['DELETE'])
@@ -269,9 +263,7 @@ def delete_jira_issues(request):
 def updateJiraPatchesAndExploits(request):
     from .scheduler import updateExploitsAndPatchesForJira
     req = updateExploitsAndPatchesForJira()
-    return JsonResponse({
-        "message":"sab changa si"
-    })
+    return JsonResponse(json.loads(req._container[0]))
 
 # @csrf_exempt
 # @api_view(['GET'])
@@ -304,9 +296,7 @@ def cardCreateTrello(request):
     from .scheduler import createCardInTrello
     req =createCardInTrello()
     return JsonResponse(
-        {
-            "message":"sab changa si"
-        }
+        json.loads(req._container[0])
     )
 
 @csrf_exempt
@@ -316,8 +306,7 @@ def updatatePatchesAndExploitsForTrello(request):
     from .scheduler import updateExploitsAndPatchesForTrello
     req =updateExploitsAndPatchesForTrello()
     return JsonResponse(
-        {
-            "message":"sab changa si"
-        }
+        json.loads(req._container[0])
     )
+
 
