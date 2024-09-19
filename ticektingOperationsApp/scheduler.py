@@ -13,8 +13,6 @@ from apscheduler.triggers.date import DateTrigger
 
 from datetime import datetime, timedelta, time
 
-from decouple import config
-
 from django.http import JsonResponse
 
 from django.template.loader import render_to_string
