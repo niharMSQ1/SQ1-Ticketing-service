@@ -2473,10 +2473,10 @@ def updateExploitsAndPatchesForJira():
                                             ticket_service_details.exploitsList = str(newExploitsList)
                                             ticket_service_details.save()
 
-                                    else:
-                                        return JsonResponse({"error": "Failed to update JIRA issue", "status_code": response.status_code}, status=500)
                                 else:
-                                    return JsonResponse({"status": "Success", "message": "No new exploits or patches"}, status=200)
+                                    continue
+                        else:
+                            return JsonResponse({"status": "Success", "message": "exploits and patches updated successfully"}, status=200)
 
                     else:
                         return JsonResponse({"error": "Failed to fetch JIRA issues", "status_code": response.status_code}, status=500)
@@ -3643,7 +3643,7 @@ def updateExploitsAndPatchesForTrello():
                                     else:
                                         return JsonResponse({"error": f"Failed to update Trello card for vulnerability {vulnerabilityId}"}, status=response.status_code)
                                 else:
-                                    return JsonResponse({"message": "No new exploits or patches in any of the cards"}, status=200)
+                                    continue
 
                     else:
                         return JsonResponse({"error": f"Failed to fetch Trello cards, status code: {responses.status_code}"}, status=responses.status_code)
@@ -3668,8 +3668,8 @@ def start_scheduler():
     now = datetime.now(pytz.UTC)
     today = now.date()
 
-    start_hour = 12
-    start_minute = 0
+    start_hour = 6
+    start_minute = 30
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
