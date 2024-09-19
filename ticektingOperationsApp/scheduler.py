@@ -131,8 +131,8 @@ def freshservice_call_create_ticket():
                         if not ticketing_tool:
                             continue
 
-                        freshservice_url = f"{ticketing_tool.get('url')}/api/v2/tickets"
-                        freshservice_key = ticketing_tool.get("key")
+                        freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
+                        freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key") 
 
                         resultCVEs = json.loads(result.get("CVEs", {}))
                         if isinstance(resultCVEs, dict):
@@ -317,8 +317,8 @@ def freshservice_call_create_ticket():
                             if not ticketing_tool:
                                 continue
 
-                            freshservice_url = f"{ticketing_tool.get('url')}/api/v2/tickets"
-                            freshservice_key = ticketing_tool.get("key")
+                            freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
+                            freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key")
 
                             resultCVEs = json.loads(result.get("CVEs", {}))
                             if isinstance(resultCVEs, dict):
@@ -371,9 +371,11 @@ def freshservice_call_create_ticket():
                             workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
                             servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
+                            descriptionText = result['description'] if result['description'] else "No Description provided"
+
 
                             combined_data = {
-                                "description": result.get("description", "").replace("'", '"') + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "description": descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
                                 "email": "ram@freshservice.com",
                                 "priority": 4,
@@ -427,14 +429,14 @@ def updateExploitsAndPatchesForFreshservice():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
     with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Freshservice'")
+        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Freshservice'")
         ticketing_tools = cursor.fetchall()
 
         all_tickets = []
 
         for tool in ticketing_tools:
-            url = tool['url']
-            key = tool['key']
+            url = (json.loads((tool.get("values")))).get("url")
+            key = (json.loads((tool.get("values")))).get("key")
             
             headers = {
                 "Content-Type":"application/json",
@@ -742,8 +744,9 @@ def jira_call_create_ticket():
                     if not ticketing_tool:
                         continue
 
-                    jira_url = f"{ticketing_tool.get('url')}"+"/rest/api/3/issue"
-                    jira_key = ticketing_tool.get("key")
+                    jira_url = (json.loads(ticketing_tool.get("values"))).get('url') + "/rest/api/3/issue/"
+                    jira_key =(json.loads(ticketing_tool.get("values"))).get('password')
+                    boardName = (json.loads(ticketing_tool.get("values"))).get('board')
 
 
                     resultCVEs = json.loads(result.get("CVEs", {}))
@@ -879,13 +882,13 @@ def jira_call_create_ticket():
                         return data
                     allPatches = convert_none_for_patches(allPatches)
                     
-                    username = "nihar.m@secqureone.com"
-                    password = ticketing_tool.get("key")
+                    username = (json.loads(ticketing_tool.get("values"))).get('username')
+                    password = jira_key
 
                     combined_data = {
                         "fields": {
                             "project": {
-                                "key": "SCRUM"
+                                "key": boardName
                             },
                             "summary": result['name'],
                             "description": {
@@ -1371,8 +1374,9 @@ def jira_call_create_ticket():
                         if not ticketing_tool:
                             continue
 
-                        jira_url = f"{ticketing_tool.get('url')}"+"/rest/api/3/issue"
-                        jira_key = ticketing_tool.get("key")
+                        jira_url = (json.loads(ticketing_tool.get("values"))).get('url')+"/rest/api/3/issue/"
+                        jira_key =(json.loads(ticketing_tool.get("values"))).get('password')
+                        boardName = (json.loads(ticketing_tool.get("values"))).get('board')
 
 
                         resultCVEs = json.loads(result.get("CVEs", {}))
@@ -1508,13 +1512,13 @@ def jira_call_create_ticket():
                             return data
                         allPatches = convert_none_for_patches(allPatches)
                         
-                        username = "nihar.m@secqureone.com"
-                        password = ticketing_tool.get("key")
+                        username = (json.loads(ticketing_tool.get("values"))).get('username')
+                        password = jira_key
 
                         combined_data = {
                             "fields": {
                                 "project": {
-                                    "key": "SCRUM"
+                                    "key":boardName
                                 },
                                 "summary": result['name'],
                                 "description": {
@@ -1926,14 +1930,15 @@ def updateExploitsAndPatchesForJira():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
     with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'JIRA'")
+        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'JIRA'")
         ticketing_tools = cursor.fetchall()
 
         all_tickets = []
 
         for tool in ticketing_tools:
-            url = tool['url']
-            key = tool['key']
+            url = ((json.loads(tool.get("values"))).get('url')) + "/rest/api/3/search"
+            key = (json.loads(tool.get("values"))).get('password')
+            boardName = (json.loads(tool.get("values"))).get('board')
 
             headers = {
                         "Content-Type": "application/json",
@@ -1941,12 +1946,12 @@ def updateExploitsAndPatchesForJira():
                     }
             
             try:
-                username = "nihar.m@secqureone.com"
+                username = (json.loads(tool.get("values"))).get('username')
                 password = key
                 params={
                         "maxResults": 1000
                     }
-                response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
+                response = requests.get(url, headers = headers,auth=HTTPBasicAuth(username, password),params=params)
                 if response.status_code == 200:
                     for response in response.json()['issues']:
                         issue_key = response.get("key")
@@ -2135,7 +2140,7 @@ def updateExploitsAndPatchesForJira():
                                 combined_data = {
                                         "fields": {
                                             "project": {
-                                                "key": "SCRUM"
+                                                "key":boardName
                                             },
                                             "summary": vulnerability_name,
                                             "description": {
@@ -2509,9 +2514,11 @@ def updateExploitsAndPatchesForJira():
                                         newExploitsList = existingExploitIds + newExploitIds
                                         ticket_service_details.exploitsList = str(newExploitsList)
                                         ticket_service_details.save()
+                                    else:
+                                        continue
                                 
-                                else:
-                                    print("Failed to update ticket for vulnerability")
+                            else:
+                                print("No exploits or patches to update")
 
             except Exception as e:
                 return JsonResponse({})
@@ -2686,10 +2693,10 @@ def createCardInTrello():
                     if not ticketing_tool:
                         continue
 
-                    url = ticketing_tool.get("url")+"/1/cards"
-                    key = ticketing_tool.get("key")
-                    token = ticketing_tool.get("token")
-                    listId = ticketing_tool.get("listId")
+                    url = (json.loads(ticketing_tool.get("values"))).get("url") +"/1/cards"
+                    trelloKey = (json.loads(ticketing_tool.get("values"))).get("key")
+                    token = (json.loads(ticketing_tool.get("values"))).get("token")
+                    listId =(json.loads(ticketing_tool.get("values"))).get("listid")
 
                     
 
@@ -2926,10 +2933,10 @@ def createCardInTrello():
                     description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vul_id)
 
                     query = {
-                        'key': '98fd0727355703d244288202ae96c469',
-                        'token': 'ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770',
-                        'idList': '66dec5e96055fd0afe3273ec',  # The ID of the list where the card will be created
-                        "name": result.get("name"),
+                        'key': trelloKey,
+                        'token': token,
+                        'idList': listId,
+                        "name": result.get("name") if result.get("name") else "Name not provided",
                         'desc': description
                     }
 
@@ -3069,15 +3076,10 @@ def createCardInTrello():
                         if not ticketing_tool:
                             continue
 
-                        url = ticketing_tool.get("url")+"/1/cards"
-                        key = ticketing_tool.get("key")
-                        token = ticketing_tool.get("token")
-                        listId = ticketing_tool.get("listId")
-
-                        
-
-                        
-
+                        url = (json.loads(ticketing_tool.get("values"))).get("url")+"/1/cards"
+                        trelloKey = (json.loads(ticketing_tool.get("values"))).get("key")
+                        token = (json.loads(ticketing_tool.get("values"))).get("token")
+                        listId = (json.loads(ticketing_tool.get("values"))).get("listid")
 
                         resultCVEs = json.loads(result.get("CVEs", {}))
                         if isinstance(resultCVEs, dict):
@@ -3314,9 +3316,9 @@ def createCardInTrello():
                         }
 
                         query = {
-                            'key': '98fd0727355703d244288202ae96c469',
-                            'token': 'ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770',
-                            'idList': '66dec5e96055fd0afe3273ec', 
+                            'key': trelloKey ,
+                            'token': token ,
+                            'idList': listId , 
                             "name": result.get("name"),
                             'desc': description
                         }
@@ -3377,21 +3379,21 @@ def updateExploitsAndPatchesForTrello():
         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
     with connection.cursor(dictionary=True) as cursor:
-        cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Trello'")
+        cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Trello'")
         ticketing_tools = cursor.fetchall()
 
         all_tickets = []
 
         for tool in ticketing_tools:
-            url = tool['url']
-            key = tool['key']
-            token = "ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770"
-            idList = "66dec5e96055fd0afe3273ec"
+            url = (json.loads(tool.get("values"))).get("url")
+            trelloKey = (json.loads(tool.get("values"))).get("key")
+            token = (json.loads(tool.get("values"))).get("token")
+            idList = (json.loads(tool.get("values"))).get("listid")
 
             try:
                 url = f'https://api.trello.com/1/lists/{idList}/cards'
                 params = {
-                    'key': key,
+                    'key': trelloKey,
                     'token': token
                 }
 
@@ -3403,7 +3405,6 @@ def updateExploitsAndPatchesForTrello():
                         checkCarIdInTicketingService = (TicketingServiceDetails.objects.filter(ticketIdIfString = cardId)).exists()
                         if checkCarIdInTicketingService==True:
                             vulnerabilityId = (TicketingServiceDetails.objects.get(ticketIdIfString = cardId)).sq1VulId
-                            # organizationId = (Vulnerabilities.objects.get(vulId = vulnerabilityId,ticketServicePlatform = "trello")).organizationId
                             organizationId = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId,ticketServicePlatform = "trello")).organizationId
 
                             ticketObj = TicketingServiceDetails.objects.get(ticketIdIfString =cardId)
@@ -3662,16 +3663,11 @@ def updateExploitsAndPatchesForTrello():
 
                                 description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vulnerabilityId)
 
-                                combined_data = {
-                                    "name": vulnerabilityResult[0]['name'],
-                                    "idList": idList,
-                                    "desc": description
-                                }
 
                                 query = {
-                                    'key': '98fd0727355703d244288202ae96c469',
-                                    'token': 'ATTAa35ff7e9f72c9384db1c8cede7cbe24ffb5daaa0c5a3fac34530e2c12e4ed5d57DAC2770',
-                                    'idList': '66dec5e96055fd0afe3273ec', 
+                                    'key': trelloKey,
+                                    'token': token,
+                                    'idList': idList, 
                                     "name": vulnerabilityResult[0]['name'],
                                     'desc': description
                                 }
@@ -3714,12 +3710,12 @@ def start_scheduler():
     start_hour = 12
     start_minute = 0
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
+    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
 
     scheduler.start()
 
