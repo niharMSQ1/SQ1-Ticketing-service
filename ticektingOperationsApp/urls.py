@@ -14,11 +14,13 @@ urlpatterns = [
     path('create-ticket-manually-freshservice/', createTicketManuallyForFreshservice),
     path('update-ticket-manually-freshservice/', updateTicketManuallyForFreshService),
     path('delete-all-tickets-freshservice/', delete_all_tickets_freshservice, name='delete_all_tickets'),
+    path('check-status-freshservice/', chechStatusForFreshServicesOrgs),
 
     # Jira
     path('create-ticket-manually-jira/', createTicketManuallyJira),
     path('update-jira-exploits-patches/', updateJiraPatchesAndExploits),
     path('delete_jira_issues/',delete_jira_issues),
+    path('check-status-jira/', checkStatusForJiraOrgs),
 
     # Trello
     path('create_trello_card/',cardCreateTrello),

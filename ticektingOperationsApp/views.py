@@ -265,30 +265,6 @@ def updateJiraPatchesAndExploits(request):
     req = updateExploitsAndPatchesForJira()
     return JsonResponse(json.loads(req._container[0]))
 
-# @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def chechStatusForFreshServicesOrgs(request):
-#     from .scheduler import changeVulnerabilityStatusForFreshService
-#     req = changeVulnerabilityStatusForFreshService()
-#     return JsonResponse(
-#         {
-#             "message":"sab changa si"
-#         }
-#     )
-
-# @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def checkStatusForJiraOrgs(request):
-#     from .scheduler import changeVulnerabilityStatusForJira
-#     req =changeVulnerabilityStatusForJira()
-#     return JsonResponse(
-#         {
-#             "message":"sab changa si"
-#         }
-#     )
-
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -309,4 +285,27 @@ def updatatePatchesAndExploitsForTrello(request):
         json.loads(req._container[0])
     )
 
+@csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def chechStatusForFreshServicesOrgs(request):
 
+    try:
+        from .scheduler import changeVulnerabilityStatusForFreshService
+        return changeVulnerabilityStatusForFreshService()
+    
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def checkStatusForJiraOrgs(request):
+    from .scheduler import changeVulnerabilityStatusForJira
+    response = changeVulnerabilityStatusForJira()
+
+    # Check if the response is an instance of JsonResponse
+    if isinstance(response, JsonResponse):
+        return response
+
+    return JsonResponse({"message": "Status check completed successfully."}, status=200)

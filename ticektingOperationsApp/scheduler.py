@@ -19,17 +19,15 @@ from django.template.loader import render_to_string
 
 from requests.auth import HTTPBasicAuth
 
-# from pytz import timezone
 
 from .dbUtils import get_connection
 from .models import *
 from .ticketing_service import save_ticket_details
 
-# Configure logging
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-lock = threading.Lock() # globally defined
+lock = threading.Lock()
 
 def freshservice_call_create_ticket():
     with lock:    
@@ -2489,79 +2487,139 @@ def updateExploitsAndPatchesForJira():
     except Exception as e:
         return JsonResponse({"error": "An error occurred", "message": str(e)}, status=500)
            
-# def changeVulnerabilityStatusForFreshService():
-#     connection = get_connection()
-#     if not connection or not connection.is_connected():
-#         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+def changeVulnerabilityStatusForFreshService():
+    connection = get_connection()
     
-#     with connection.cursor(dictionary=True) as cursor:
-#         cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'Freshservice'")
-#         ticketing_tools = cursor.fetchall()
-
-#         all_tickets = []
-
-#         for tool in ticketing_tools:
-#             url = tool['url']
-#             key = tool['key']
-            
-#             headers = {
-#                 "Content-Type":"application/json",
-#                 "Authorization": f"Basic {key}"
-#             }
-
-#             try:
-#                 params = {
-#                     "per_page": 100
-#                 }
-#                 response = requests.get(f"{url}/api/v2/tickets", headers=headers, params = params)
-
-#                 if response.status_code == 200:
-#                     tickets = response.json().get('tickets', [])
-#                     all_tickets.extend(tickets)
-#                     for ticket in all_tickets:
-#                         if ticket.get("status") ==4:
-#                             vulId = (TicketingServiceDetails.objects.get(createdTicketId = ticket.get("id"))).sq1VulId
-#                             cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
-#                 else:
-#                     print(f"Error fetching tickets for {url}: {response.status_code} - {response.text}")
-#             except requests.RequestException as e:
-#                 print(f"Request failed for {url}: {str(e)}")
-            
-# def changeVulnerabilityStatusForJira():
-#     connection = get_connection()
-#     if not connection or not connection.is_connected():
-#         return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
     
-#     with connection.cursor(dictionary=True) as cursor:
-#         cursor.execute("SELECT url, `key` FROM ticketing_tool WHERE type = 'JIRA'")
-#         ticketing_tools = cursor.fetchall()
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'Freshservice'")
+            ticketing_tools = cursor.fetchall()
 
-#         all_tickets = []
+            all_tickets = []
 
-#         for tool in ticketing_tools:
-#             url = tool['url']
-#             key = tool['key']
+            for tool in ticketing_tools:
+                url = (json.loads(tool.get("values"))).get("url")
+                key = (json.loads(tool.get("values"))).get("key")
 
-#             headers = {
-#                         "Content-Type": "application/json",
-#                         "Authorization": f"Bearer {key}"
-#                     }
-            
-#             try:
-#                 username = "nihar.m@secqureone.com"
-#                 password = key
-#                 params={
-#                         "maxResults": 1000
-#                     }
-#                 response = requests.get((url+"/rest/api/3/search"), headers = headers,auth=HTTPBasicAuth(username, password),params=params)
-#                 if response.status_code == 200:
-#                     for response in response.json()['issues']:
-#                         if response['fields']['status']['name'] == "Completed":
-#                             issueId = int(((response.get("key")).split('-')[1]))
-#                             vulId = (TicketingServiceDetails.objects.get(createdTicketId = issueId)).sq1VulId
-#                             cursor.execute(f"update vulnerabilities set status = 1 where id = {vulId};")
-#             except Exception as e:
-#                 print(e)
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Basic {key}"
+                }
+
+                page = 1
+                while True:
+                    try:
+                        params = {
+                            "per_page": 100,
+                            "page": page
+                        }
+                        response = requests.get(f"{url}/api/v2/tickets", headers=headers, params=params)
+
+                        if response.status_code == 200:
+                            tickets = response.json().get('tickets', [])
+                            all_tickets.extend(tickets)
+                            if not tickets:
+                                break
+                            for ticket in tickets:
+                                ticket_id = ticket.get("id")
+
+                                if ticket.get("status") == 5:
+                                    try:
+                                        ticket_details = TicketingServiceDetails.objects.get(ticketId=ticket_id)
+                                        vulId = ticket_details.sq1VulId
+                                        ticket_details.isActive = False
+                                        ticket_details.save()
+
+                                        cursor.execute("SELECT * FROM vulnerabilities")
+                                        vulnerabilitiesInMainDB = cursor.fetchall()
+
+                                        cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vulId}")
+
+                                    except TicketingServiceDetails.DoesNotExist:
+                                        return JsonResponse({"error": f"TicketingServiceDetails not found for ticket ID: {ticket_id}"}, status=404)
+                                    except Exception as e:
+                                        return JsonResponse({"error": f"Error updating vulnerability for ticket ID {ticket_id}: {str(e)}"}, status=500)
+                        else:
+                            return JsonResponse({"error": f"Failed to fetch tickets from {url}: {response.status_code} - {response.text}"}, status=500)
+
+                    except requests.RequestException as e:
+                        return JsonResponse({"error": f"Request failed for {url}: {str(e)}"}, status=500)
+
+                    page += 1
+
+            if all_tickets:
+                return JsonResponse({"message": "Tickets processed successfully", "processed_tickets": len(all_tickets)}, status=200)
+            else:
+                return JsonResponse({"message": "No tickets found"}, status=200)
+    
+    except Exception as e:
+        return JsonResponse({"error": f"An error occurred: {str(e)}"}, status=500)
+          
+logger = logging.getLogger(__name__)
+
+def changeVulnerabilityStatusForJira():
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+    
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'JIRA'")
+            ticketing_tools = cursor.fetchall()
+
+            all_tickets = []
+
+            for tool in ticketing_tools:
+                url = (json.loads(tool.get("values"))).get("url")
+                username = (json.loads(tool.get("values"))).get("username")
+                password = (json.loads(tool.get("values"))).get("password")
+
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {password}"
+                }
+
+                params = {
+                    "startAt": 0,
+                    "maxResults": 100
+                }
+
+                while True:
+                    response = requests.get(f"{url}/rest/api/3/search", headers=headers, auth=HTTPBasicAuth(username, password), params=params)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        issues = data.get('issues', [])
+                        
+                        if not issues:
+                            break 
+
+                        for issue in issues:
+                            issue_id = int(issue.get("key").split('-')[1])
+                            
+                            if TicketingServiceDetails.objects.filter(ticketId=issue_id).exists():
+                                ticket_details = TicketingServiceDetails.objects.get(ticketId=issue_id)
+                                vul_id = ticket_details.sq1VulId
+
+                                ticket_details.isActive = True
+                                ticket_details.save()
+
+                                cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vul_id}")
+
+                        params["startAt"] += params["maxResults"]
+
+                    else:
+                        logger.error(f"Failed to fetch issues from JIRA. Status code: {response.status_code}, Response: {response.text}")
+                        break
+
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"success": "Vulnerability status updated successfully"})
 
 def createCardInTrello():
     connection = get_connection()
@@ -3661,6 +3719,8 @@ def updateExploitsAndPatchesForTrello():
             connection.close()
 
 
+def changeVulnerabilityStatusForTrello():
+    return
 
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
