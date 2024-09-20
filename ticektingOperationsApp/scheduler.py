@@ -2557,6 +2557,10 @@ def changeVulnerabilityStatusForFreshService():
     
     except Exception as e:
         return JsonResponse({"error": f"An error occurred: {str(e)}"}, status=500)
+    
+    finally:
+        if connection.is_connected():
+            connection.close()
           
 logger = logging.getLogger(__name__)
 
@@ -2607,7 +2611,9 @@ def changeVulnerabilityStatusForJira():
                                 ticket_details.isActive = True
                                 ticket_details.save()
 
-                                cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vul_id}")
+                                # cursor.execute("SELECT * FROM vulnerabilities")
+                                # vulnerabilitiesInMainDB = cursor.fetchall()
+                                # cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vul_id}")
 
                         params["startAt"] += params["maxResults"]
 
@@ -2618,6 +2624,10 @@ def changeVulnerabilityStatusForJira():
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
+    
+    finally:
+        if connection.is_connected():
+            connection.close()
 
     return JsonResponse({"success": "Vulnerability status updated successfully"})
 
@@ -2875,7 +2885,7 @@ def createCardInTrello():
                                 detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
                                 detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
                                 detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
-                                detection_section += "---\n\n"  # Add a horizontal rule to separate detections
+                                detection_section += "---\n\n"  
                         else:
                             detection_section += "_No detections found._\n\n"
 
@@ -2887,7 +2897,7 @@ def createCardInTrello():
                                 remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
                                 remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
                                 remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
-                                remediation_section += "---\n\n"  # Horizontal rule between items
+                                remediation_section += "---\n\n" 
                         else:
                             remediation_section += "_No remediation steps available._\n\n"
 
@@ -2900,7 +2910,7 @@ def createCardInTrello():
                                 exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
                                 exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
                                 exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
-                                exploit_section += "---\n\n"  # Horizontal rule between exploits
+                                exploit_section += "---\n\n"  
                         else:
                             exploit_section += "_No exploits found._\n\n"
 
@@ -2912,13 +2922,13 @@ def createCardInTrello():
                                 patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
                                 patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
                                 patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
-                                patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
+                                patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n" 
                                 patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
-                                patch_section += "---\n\n"  # Horizontal rule between patches
+                                patch_section += "---\n\n"  
                         else:
                             patch_section += "_No patches available._\n\n"
 
-                        # Workstation section with detailed lists
+                    
                         workstation_section = "## Workstations\n\n"
                         if workstations:
                             for i, workstation in enumerate(workstations, 1):
