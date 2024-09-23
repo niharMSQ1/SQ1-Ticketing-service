@@ -3811,11 +3811,21 @@ def start_scheduler():
     start_minute = 30
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute), tzinfo=pytz.UTC)))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 3, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 6, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 9, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 12, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 5, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 10, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
 
+    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 15, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_hour, minute=start_minute + 20, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 3), tzinfo=pytz.UTC)))
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_hour, minute=start_minute + 25, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 6), tzinfo=pytz.UTC)))
+
+    
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_hour, minute=start_minute + 30, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 9), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_hour, minute=start_minute + 35, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 12), tzinfo=pytz.UTC)))
+    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_hour, minute=start_minute + 40, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 15), tzinfo=pytz.UTC)))
+
+
+    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_hour, minute=start_minute + 45, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 18), tzinfo=pytz.UTC)))
+    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_hour, minute=start_minute + 50, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 21), tzinfo=pytz.UTC)))
+    scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_hour, minute=start_minute + 55, day_of_week='*', start_date=datetime.combine(today, time(start_hour, start_minute + 24), tzinfo=pytz.UTC)))
     scheduler.start()
 
