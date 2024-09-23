@@ -378,7 +378,7 @@ def freshservice_call_create_ticket():
                                 "status": 2,
                                 "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
                                 "workspace_id": 2,
-                                "urgency": mapped_priority,
+                                "urgency": 3,
                             }
 
                             headers = {
@@ -2535,8 +2535,9 @@ def changeVulnerabilityStatusForFreshService():
 
                                         cursor.execute("SELECT * FROM vulnerabilities")
                                         vulnerabilitiesInMainDB = cursor.fetchall()
+                                        cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vulId}")
 
-                                        cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vulId}")
+                                        connection.commit()
 
                                     except TicketingServiceDetails.DoesNotExist:
                                         return JsonResponse({"error": f"TicketingServiceDetails not found for ticket ID: {ticket_id}"}, status=404)
@@ -2605,15 +2606,19 @@ def changeVulnerabilityStatusForJira():
                             issue_id = int(issue.get("key").split('-')[1])
                             
                             if TicketingServiceDetails.objects.filter(ticketId=issue_id).exists():
-                                ticket_details = TicketingServiceDetails.objects.get(ticketId=issue_id)
-                                vul_id = ticket_details.sq1VulId
+                                if issue.get("fields", {}).get("status", {}).get("name") == "To Do":
 
-                                ticket_details.isActive = True
-                                ticket_details.save()
+                                    ticket_details = TicketingServiceDetails.objects.get(ticketId=issue_id)
+                                    vul_id = ticket_details.sq1VulId
 
-                                # cursor.execute("SELECT * FROM vulnerabilities")
-                                # vulnerabilitiesInMainDB = cursor.fetchall()
-                                # cursor.execute(f"UPDATE vulnerabilities SET status = 1 WHERE id = {vul_id}")
+                                    ticket_details.isActive = True
+                                    ticket_details.save()
+
+                                    cursor.execute("SELECT * FROM vulnerabilities")
+                                    vulnerabilitiesInMainDB = cursor.fetchall()
+                                    cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vul_id}")
+
+                                    connection.commit()
 
                         params["startAt"] += params["maxResults"]
 
@@ -3730,7 +3735,71 @@ def updateExploitsAndPatchesForTrello():
 
 
 def changeVulnerabilityStatusForTrello():
-    return
+    connection = get_connection()
+    if not connection or not connection.is_connected():
+        return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM ticketing_tool WHERE type = 'trello'")
+            ticketing_tools = cursor.fetchall()
+
+            for tool in ticketing_tools:
+                list_id= (json.loads(tool.get("values"))).get("listid")
+                api_key = (json.loads(tool.get("values"))).get("key")
+                api_token = (json.loads(tool.get("values"))).get("token")
+
+                url = f"https://api.trello.com/1/lists/{list_id}/cards"
+
+                headers = {
+                "Accept": "application/json"
+                }
+
+                query = {
+                "key": api_key,
+                "token": api_token
+                }
+
+                response = requests.get(url, headers=headers, params=query)
+
+                if response.status_code == 200:
+                    cards = response.json()
+                    for card in cards:
+                        card_id = card.get("id")
+
+                        if TicketingServiceDetails.objects.filter(ticketIdIfString=card_id).exists():
+                            if card.get("closed")!="random string to test":
+                                card_details= TicketingServiceDetails.objects.get(ticketIdIfString=card_id)
+                                vul_id = card_details.sq1VulId
+
+                                card_details.isActive = False
+                                card_details.save()
+
+                                cursor.execute("SELECT * FROM vulnerabilities")
+
+                                vulnerabilitiesInMainDB = cursor.fetchall()
+                                cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vul_id}")
+
+                                connection.commit()
+                else:
+                    print(f"Failed to get cards: {response.status_code}")
+
+
+
+
+
+
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
+    
+    finally:
+        if connection.is_connected():
+            connection.close()
+
+    return JsonResponse({"success": "Vulnerability status updated successfully"})
+
+
 
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)

@@ -309,3 +309,10 @@ def checkStatusForJiraOrgs(request):
         return response
 
     return JsonResponse({"message": "Status check completed successfully."}, status=200)
+
+
+@csrf_exempt
+def checkStatusForTrello(request):
+    from .scheduler import changeVulnerabilityStatusForTrello
+    response = changeVulnerabilityStatusForTrello()
+    return JsonResponse({})
