@@ -549,6 +549,36 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
         }
     }
 
+    if patches:
+        patch_data = []
+        for patch in patches:
+            patchSolution = patch.get("solution", "")
+            patchDescription = patch.get("description", "")
+            patchComplexity = patch.get("complexity", "")
+            patchType = patch.get("type", "")
+            os_list = json.loads(patch.get("os", "[]"))
+            patchOs = ", ".join(f"{os['os_name']}-{os['os_version']}" for os in os_list)
+
+            patch_data.append({
+                'solution': patchSolution,
+                'description': patchDescription,
+                'complexity': patchComplexity,
+                'type': patchType,
+                'os': patchOs,
+                'url': patch.get("url", "")
+            })
+
+        patchContext = {
+            'patches': patch_data
+        }
+    else:
+        patchContext = {
+            'patches': []
+        }
+
+
+    
+
     # Fetch asset details (workstations and servers)
     assetables_results = cursor.fetchall()
     assets = get_assets(cursor, assetables_results, organizationId)
@@ -557,7 +587,7 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
     detection_summary_table = render_to_string('detection_summary_table.html', context)
     remediation_table = render_to_string('remedieationTableUpd.html', {'solutionPatch': result[0].get("solution_patch")})
     exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits})
-    patch_table_html = render_to_string('patch_table.html', {'patches': patches})
+    patch_table_html = render_to_string('patch_table.html', patchContext)
     workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
     servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
@@ -3745,11 +3775,11 @@ def changeVulnerabilityStatusForTrello():
             ticketing_tools = cursor.fetchall()
 
             for tool in ticketing_tools:
-                list_id= (json.loads(tool.get("values"))).get("listid")
                 api_key = (json.loads(tool.get("values"))).get("key")
                 api_token = (json.loads(tool.get("values"))).get("token")
+                closed_list_id = (json.loads(tool.get("values"))).get("closedListId")
 
-                url = f"https://api.trello.com/1/lists/{list_id}/cards"
+                url = f"https://api.trello.com/1/lists/{closed_list_id}/cards"
 
                 headers = {
                 "Accept": "application/json"
@@ -3761,14 +3791,17 @@ def changeVulnerabilityStatusForTrello():
                 }
 
                 response = requests.get(url, headers=headers, params=query)
+                
+                response2 = requests.get(url, headers=headers, params=query)
+                if response2.status_code == 200:
+                    if len(response2.json())>0:
+                        cards = response2.json()
+                        for card in cards:
+                            card_id = card.get("id")
 
-                if response.status_code == 200:
-                    cards = response.json()
-                    for card in cards:
-                        card_id = card.get("id")
-
-                        if TicketingServiceDetails.objects.filter(ticketIdIfString=card_id).exists():
-                            if card.get("closed")!="random string to test":
+                            if TicketingServiceDetails.objects.filter(ticketIdIfString=card_id).exists():
+                                if TicketingServiceDetails.objects.get(ticketIdIfString=card_id).isActive == False:
+                                    continue
                                 card_details= TicketingServiceDetails.objects.get(ticketIdIfString=card_id)
                                 vul_id = card_details.sq1VulId
 
@@ -3781,10 +3814,41 @@ def changeVulnerabilityStatusForTrello():
                                 cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vul_id}")
 
                                 connection.commit()
+                                print()
                 else:
                     print(f"Failed to get cards: {response.status_code}")
 
+            # allCardsObj= TicketingServiceDetails.objects.filter(ticketServicePlatform="Trello", isActive = True).values()
+            # for card in allCardsObj:
+            #     card_id = "66f2a28f89bd3bcda2b09eef"
 
+            #     url = f"https://api.trello.com/1/cards/{card_id}?key={api_key}&token={api_token}"
+
+            #     headers = {
+            #     "Accept": "application/json"
+            #     }
+
+            #     query = {
+            #     "key": api_key,
+            #     "token": api_token
+            #     }
+
+            #     response = requests.get(url, headers=headers, params=query)
+            #     if response.status_code == 200:
+            #         if (response.json()).get("closed") == True:
+            #             card_details= TicketingServiceDetails.objects.get(ticketIdIfString=card_id)
+            #             vul_id = card_details.sq1VulId
+
+            #             card_details.isActive = False
+            #             card_details.save()
+
+            #             cursor.execute("SELECT * FROM vulnerabilities")
+
+            #             vulnerabilitiesInMainDB = cursor.fetchall()
+            #             cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vul_id}")
+
+            #             connection.commit()
+            #             print()
 
 
 
@@ -3800,27 +3864,26 @@ def changeVulnerabilityStatusForTrello():
     return JsonResponse({"success": "Vulnerability status updated successfully"})
 
 
-
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
     start_time = datetime.now(pytz.UTC).replace(hour=9, minute=00, second=0, microsecond=0)
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 6) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 6) % 60, day_of_week='*', start_date=start_time))
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 12) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 12) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
 
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 18) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 21) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 24) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 18) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 21) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 24) % 60, day_of_week='*', start_date=start_time))
 
-    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 27) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 30) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 33) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 27) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 30) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 33) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.start()
 
