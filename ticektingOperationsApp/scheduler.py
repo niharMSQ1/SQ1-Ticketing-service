@@ -183,13 +183,16 @@ def freshservice_call_create_ticket():
 
                         description = result['description'] if result['description'] is not None else "Description not present"
 
+                        severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
+                        patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
+
                         combined_data = {
-                            "description": description+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "description": description+severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
-                            "email": "ram@freshservice.com",
+                            "email": "abc@123.com",
                             "priority": 4,
                             "status": 2,
-                            "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+                            "cc_emails": [],
                             "workspace_id": 2,
                             "urgency": 3,
                         }
@@ -369,14 +372,17 @@ def freshservice_call_create_ticket():
 
                             descriptionText = result['description'] if result['description'] else "No Description provided"
 
+                            severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
+                            patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
+
 
                             combined_data = {
-                                "description": descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "description": descriptionText +severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
-                                "email": "ram@freshservice.com",
+                                "email": "abc@123.com",
                                 "priority": 4,
                                 "status": 2,
-                                "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+                                "cc_emails": [],
                                 "workspace_id": 2,
                                 "urgency": 3,
                             }
@@ -593,13 +599,16 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
 
     descriptionTxt = result[0].get('description') if  result[0].get('description') else "No description added"
 
+    severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
+    patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
+
     combined_data = {
-        "description": descriptionTxt + detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
+        "description": descriptionTxt +severity+patch_priority+ detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
         "subject": result[0].get('name'),
-        "email": "ram@freshservice.com",
+        "email": "abc@123.com",
         "priority": 4,
         "status": 2,
-        "cc_emails": ["ram@freshservice.com", "diana@freshservice.com"],
+        "cc_emails": [],
         "workspace_id": 2,
         "urgency": 3,
     }
@@ -895,6 +904,24 @@ def jira_call_create_ticket():
                                             {
                                                 "type": "text",
                                                 "text": vulnerability_description
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Severity: " + result['severity'] if result['severity'] is not None else "severity not added"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Patch Priority: " + result['patch_priority'] if result['patch_priority'] is not None else "patch priority not added"
                                             }
                                         ]
                                     },
@@ -1533,6 +1560,24 @@ def jira_call_create_ticket():
                                                 }
                                             ]
                                         },
+                                        {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Severity: " + result['severity'] if result['severity'] is not None else "severity not added"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Patch Priority: " + result['patch_priority'] if result['patch_priority'] is not None else "patch priority not added"
+                                            }
+                                        ]
+                                    },
                                         # Detection Summary section
                                         {
                                             "type": "paragraph",
@@ -2144,6 +2189,24 @@ def updateExploitsAndPatchesForJira():
                                                             }
                                                         ]
                                                     },
+                                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Severity: " + vulnerabilityResult['severity'] if vulnerabilityResult['severity'] is not None else "severity not added"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "paragraph",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": "Patch Priority: " + vulnerabilityResult['patch_priority'] if vulnerabilityResult['patch_priority'] is not None else "patch priority not added"
+                                            }
+                                        ]
+                                    },
                                                     # Detection Summary section
                                                     {
                                                         "type": "paragraph",
@@ -2909,6 +2972,8 @@ def createCardInTrello():
 
                         # Adding the vulnerability description at the top with a prominent title
                         vulnerability_section = f"# **{vulnerability_description}**\n\n"
+                        severity_section = f"## **Severity:** *{result['severity'] if result['severity'] is not None else 'Severity not added'}*\n\n"
+                        patch_priority_section = f"## **Patch Priority:** *{result['patch_priority'] if result['patch_priority'] is not None else 'Patch Priority not added'}*\n\n"
 
                         # Detection section with subheadings for each detection
                         detection_section = "## Detection Summary\n\n"
@@ -2988,6 +3053,8 @@ def createCardInTrello():
                         # Combine all sections
                         description = (
                             vulnerability_section +
+                            severity_section +
+                            patch_priority_section +
                             detection_section +
                             remediation_section +
                             exploit_section +
@@ -3289,6 +3356,9 @@ def createCardInTrello():
                             # Adding the vulnerability description at the top with a prominent title
                             vulnerability_section = f"# **{vulnerability_description}**\n\n"
 
+                            severity_section = f"## **Severity:** *{result['severity'] if result['severity'] is not None else 'Severity not added'}*\n\n"
+                            patch_priority_section = f"## **Patch Priority:** *{result['patch_priority'] if result['patch_priority'] is not None else 'Patch Priority not added'}*\n\n"
+
                             # Detection section with subheadings for each detection
                             detection_section = "## Detection Summary\n\n"
                             if listOfDetection:
@@ -3367,6 +3437,8 @@ def createCardInTrello():
                             # Combine all sections
                             description = (
                                 vulnerability_section +
+                                severity_section +
+                                patch_priority_section +
                                 detection_section +
                                 remediation_section +
                                 exploit_section +
@@ -3636,10 +3708,13 @@ def updateExploitsAndPatchesForTrello():
                                         return data
                                     allPatches = convert_none_for_patches(allPatches)
 
-                                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
+                                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id, severity_section, patch_priority_section):
 
                                         # Adding the vulnerability description at the top with a prominent title
                                         vulnerability_section = f"# **{vulnerability_description}**\n\n"
+
+                                        severity_section = f"## **Severity:** *{severity_section}*\n\n"
+                                        patch_priority_section = f"## **Patch Priority:** *{patch_priority_section}*\n\n"
 
                                         # Detection section with subheadings for each detection
                                         detection_section = "## Detection Summary\n\n"
@@ -3715,11 +3790,34 @@ def updateExploitsAndPatchesForTrello():
                                                 server_section += "---\n\n"
                                         else:
                                             server_section += "_No servers found._\n\n"
+
+                                        full_description = (
+                                            vulnerability_section +
+                                            severity_section + "\n\n" +
+                                            patch_priority_section + "\n\n" +
+                                            detection_section +
+                                            remediation_section +
+                                            exploit_section +
+                                            patch_section +
+                                            workstation_section +
+                                            server_section
+                                        )
+
+                                        # Return the full formatted description
+                                        return full_description
+
+                                    # severity_section = f"# **{vulnerabilityResult['severity'] if vulnerabilityResult['severity'] is not None else "Severity not added"}**\n\n"
+                                    # patch_priority_section = f"# **{vulnerabilityResult['patch_priority'] if vulnerabilityResult['patch_priority'] is not None else "Patch Priority not added"}**\n\n"
+                                    
+                                    severity_section = (vulnerabilityResult[0]).get('severity') if (vulnerabilityResult[0]).get('severity') is not None else "Severity not added"
+                                    patch_priority_section = (vulnerabilityResult[0]).get('patch_priority') if (vulnerabilityResult[0]).get('patch_priority') is not None else "Patch Priority not added"
+
+
                                     
                                     description = format_trello_description(
                                         listOfDetection, listOfRemediation, allExploits, 
                                         allPatches, workstations, servers, 
-                                        vulnerability_description, vulnerabilityId
+                                        vulnerability_description, vulnerabilityId, severity_section, patch_priority_section
                                     )
 
                                     query = {
