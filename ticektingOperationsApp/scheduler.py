@@ -3910,12 +3910,11 @@ def changeVulnerabilityStatusForTrello():
                 "token": api_token
                 }
 
-                response = requests.get(url, headers=headers, params=query)
                 
-                response2 = requests.get(url, headers=headers, params=query)
-                if response2.status_code == 200:
-                    if len(response2.json())>0:
-                        cards = response2.json()
+                response = requests.get(url, headers=headers, params=query)
+                if response.status_code == 200:
+                    if len(response.json())>0:
+                        cards = response.json()
                         for card in cards:
                             card_id = card.get("id")
 
@@ -3938,41 +3937,7 @@ def changeVulnerabilityStatusForTrello():
                 else:
                     print(f"Failed to get cards: {response.status_code}")
 
-            # allCardsObj= TicketingServiceDetails.objects.filter(ticketServicePlatform="Trello", isActive = True).values()
-            # for card in allCardsObj:
-            #     card_id = "66f2a28f89bd3bcda2b09eef"
-
-            #     url = f"https://api.trello.com/1/cards/{card_id}?key={api_key}&token={api_token}"
-
-            #     headers = {
-            #     "Accept": "application/json"
-            #     }
-
-            #     query = {
-            #     "key": api_key,
-            #     "token": api_token
-            #     }
-
-            #     response = requests.get(url, headers=headers, params=query)
-            #     if response.status_code == 200:
-            #         if (response.json()).get("closed") == True:
-            #             card_details= TicketingServiceDetails.objects.get(ticketIdIfString=card_id)
-            #             vul_id = card_details.sq1VulId
-
-            #             card_details.isActive = False
-            #             card_details.save()
-
-            #             cursor.execute("SELECT * FROM vulnerabilities")
-
-            #             vulnerabilitiesInMainDB = cursor.fetchall()
-            #             cursor.execute(f"UPDATE vulnerabilities SET status = '1' WHERE id = {vul_id}")
-
-            #             connection.commit()
-            #             print()
-
-
-
-
+        
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
@@ -4003,5 +3968,3 @@ def start_scheduler():
     scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 24) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.start()
-
-
