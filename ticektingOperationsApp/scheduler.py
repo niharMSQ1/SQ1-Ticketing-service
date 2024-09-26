@@ -2041,7 +2041,7 @@ def updateExploitsAndPatchesForJira():
                                     
                                     mapped_priority = None 
 
-                                    risk = float(vulnerabilityResult.get("risk"))
+                                    risk = float(vulnerabilityResult[0].get("risk"))
 
                                     if 9.0 <= risk <= 10.0:
                                         mapped_priority = "Highest"
@@ -2213,7 +2213,7 @@ def updateExploitsAndPatchesForJira():
                                         "content": [
                                             {
                                                 "type": "text",
-                                                "text": "Severity: " + vulnerabilityResult['severity'] if vulnerabilityResult['severity'] is not None else "severity not added"
+                                                "text": "Severity: " + vulnerabilityResult[0]['severity'] if vulnerabilityResult[0]['severity'] is not None else "severity not added"
                                             }
                                         ]
                                     },
@@ -2222,7 +2222,7 @@ def updateExploitsAndPatchesForJira():
                                         "content": [
                                             {
                                                 "type": "text",
-                                                "text": "Patch Priority: " + vulnerabilityResult['patch_priority'] if vulnerabilityResult['patch_priority'] is not None else "patch priority not added"
+                                                "text": "Patch Priority: " + vulnerabilityResult[0]['patch_priority'] if vulnerabilityResult[0]['patch_priority'] is not None else "patch priority not added"
                                             }
                                         ]
                                     },
@@ -3987,7 +3987,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=00, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=8, minute=30, second=0, microsecond=0)
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
