@@ -190,7 +190,7 @@ def freshservice_call_create_ticket():
                             "description": description+severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
                             "email": "abc@123.com",
-                            "priority": 4,
+                            "priority": mapped_priority,
                             "status": 2,
                             "cc_emails": [],
                             "workspace_id": 2,
@@ -380,7 +380,7 @@ def freshservice_call_create_ticket():
                                 "description": descriptionText +severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
                                 "email": "abc@123.com",
-                                "priority": 4,
+                                "priority": mapped_priority,
                                 "status": 2,
                                 "cc_emails": [],
                                 "workspace_id": 2,
@@ -599,8 +599,8 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
 
     descriptionTxt = result[0].get('description') if  result[0].get('description') else "No description added"
 
-    severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
-    patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
+    severity = f"<br><br><br><p><strong>Severity:</strong> {result[0]['severity'] if result[0]['severity'] else "No severity"}</p>"
+    patch_priority = f"<br><p><strong>Patch Priority:</strong> {result[0]['patch_priority'] if result[0]['patch_priority'] else "No patch priority"}</p>"
 
     combined_data = {
         "description": descriptionTxt +severity+patch_priority+ detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
@@ -718,14 +718,14 @@ def jira_call_create_ticket():
 
                     risk = float(result.get("risk"))
 
-                    # if 9.0 <= risk <= 10.0:
-                    #     mapped_priority = 4
-                    # elif 7.0 <= risk <= 8.9:
-                    #     mapped_priority = 3
-                    # elif 4.0 <= risk <= 6.9:
-                    #     mapped_priority = 2
-                    # elif 0.1 <= risk <= 3.9:
-                    #     mapped_priority = 1
+                    if 9.0 <= risk <= 10.0:
+                            mapped_priority = "Highest"
+                    elif 7.0 <= risk <= 8.9:
+                        mapped_priority = "High"
+                    elif 4.0 <= risk <= 6.9:
+                        mapped_priority = "Medium"
+                    elif 0.1 <= risk <= 3.9:
+                        mapped_priority = "Low"
 
                     cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                     exploits = cursor.fetchall()
@@ -1248,6 +1248,9 @@ def jira_call_create_ticket():
                             "issuetype": {
                                 "name": "Task"
                             },
+                            "priority": {
+                                "name": mapped_priority
+                            },
                             "assignee": {
                                 "name": "assignee_username"
                             },
@@ -1371,14 +1374,14 @@ def jira_call_create_ticket():
 
                         risk = float(result.get("risk"))
 
-                        # if 9.0 <= risk <= 10.0:
-                        #     mapped_priority = 4
-                        # elif 7.0 <= risk <= 8.9:
-                        #     mapped_priority = 3
-                        # elif 4.0 <= risk <= 6.9:
-                        #     mapped_priority = 2
-                        # elif 0.1 <= risk <= 3.9:
-                        #     mapped_priority = 1
+                        if 9.0 <= risk <= 10.0:
+                            mapped_priority = "Highest"
+                        elif 7.0 <= risk <= 8.9:
+                            mapped_priority = "High"
+                        elif 4.0 <= risk <= 6.9:
+                            mapped_priority = "Medium"
+                        elif 0.1 <= risk <= 3.9:
+                            mapped_priority = "Low"
 
                         cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                         exploits = cursor.fetchall()
@@ -1901,6 +1904,9 @@ def jira_call_create_ticket():
                                 "issuetype": {
                                     "name": "Task"
                                 },
+                                "priority": {
+                                "name": "High"
+                                },
                                 "assignee": {
                                     "name": "assignee_username"
                                 },
@@ -2032,6 +2038,19 @@ def updateExploitsAndPatchesForJira():
                                     vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
                                     vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
+                                    
+                                    mapped_priority = None 
+
+                                    risk = float(vulnerabilityResult.get("risk"))
+
+                                    if 9.0 <= risk <= 10.0:
+                                        mapped_priority = "Highest"
+                                    elif 7.0 <= risk <= 8.9:
+                                        mapped_priority = "High"
+                                    elif 4.0 <= risk <= 6.9:
+                                        mapped_priority = "Medium"
+                                    elif 0.1 <= risk <= 3.9:
+                                        mapped_priority = "Low"
 
                                     # Detection Summary
                                     cves = json.loads(vulnerabilityResult[0]["CVEs"])
@@ -2529,6 +2548,9 @@ def updateExploitsAndPatchesForJira():
                                             },
                                             "issuetype": {
                                                 "name": "Task"
+                                            },
+                                            "priority": {
+                                                "name": mapped_priority
                                             },
                                             "assignee": {
                                                 "name": "assignee_username"
