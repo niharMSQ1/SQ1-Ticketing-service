@@ -95,17 +95,22 @@ def freshservice_call_create_ticket():
 
 
                         mapped_priority = None
+                        mapped_priority_html = None
 
                         risk = float(result.get("risk"))
 
                         if 9.0 <= risk <= 10.0:
                             mapped_priority = 4
+                            mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #880808;'> Critical</strong><br><br>"
                         elif 7.0 <= risk <= 8.9:
                             mapped_priority = 3
+                            mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #AA4A44;'> High</strong><br><br>"
                         elif 4.0 <= risk <= 6.9:
                             mapped_priority = 2
+                            mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #FFC300;'> Medium</strong><br><br>"
                         elif 0.1 <= risk <= 3.9:
                             mapped_priority = 1
+                            mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #00FF28;'> Medium</strong><br><br>"
 
                         cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                         exploits = cursor.fetchall()
@@ -181,13 +186,14 @@ def freshservice_call_create_ticket():
                         workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
                         servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
-                        description = result['description'] if result['description'] is not None else "Description not present"
+                        description = f"<strong>Vulnerability synopsis:</strong> {result['description']}" if result['description'] is not None else "<strong>Vulnerability synopsis:</strong> NA"
 
                         severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
                         patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
+                        
 
                         combined_data = {
-                            "description": description+severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "description": mapped_priority_html+description+severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
                             "email": "abc@123.com",
                             "priority": mapped_priority,
@@ -284,17 +290,22 @@ def freshservice_call_create_ticket():
                                     index = index+1
 
                             mapped_priority = None
+                            mapped_priority_html = None
 
                             risk = float(result.get("risk"))
 
                             if 9.0 <= risk <= 10.0:
                                 mapped_priority = 4
+                                mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #880808;'> Critical</strong><br><br>"
                             elif 7.0 <= risk <= 8.9:
                                 mapped_priority = 3
+                                mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #AA4A44;'> High</strong><br><br>"
                             elif 4.0 <= risk <= 6.9:
                                 mapped_priority = 2
+                                mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #FFC300;'> Medium</strong><br><br>"
                             elif 0.1 <= risk <= 3.9:
                                 mapped_priority = 1
+                                mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #00FF28;'> Medium</strong><br><br>"
 
                             cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                             exploits = cursor.fetchall()
@@ -370,14 +381,14 @@ def freshservice_call_create_ticket():
                             workstation_table = render_to_string('workstation_table.html', {'workstations': assets['workstations']})
                             servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
-                            descriptionText = result['description'] if result['description'] else "No Description provided"
+                            descriptionText = f"<strong>Vulnerability synopsis:</strong> {result['description']}" if result['description'] is not None else "<strong>Vulnerability synopsis:</strong> NA"
 
                             severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
                             patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
 
 
                             combined_data = {
-                                "description": descriptionText +severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "description":mapped_priority+ descriptionText +severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
                                 "email": "abc@123.com",
                                 "priority": mapped_priority,
@@ -582,6 +593,24 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
             'patches': []
         }
 
+    mapped_priority = None
+    mapped_priority_html = None
+
+    risk = float((result[0]).get("risk"))
+
+    if 9.0 <= risk <= 10.0:
+        mapped_priority = 4
+        mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #880808;'> Critical</strong><br><br>"
+    elif 7.0 <= risk <= 8.9:
+        mapped_priority = 3
+        mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #AA4A44;'> High</strong><br><br>"
+    elif 4.0 <= risk <= 6.9:
+        mapped_priority = 2
+        mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #FFC300;'> Medium</strong><br><br>"
+    elif 0.1 <= risk <= 3.9:
+        mapped_priority = 1
+        mapped_priority_html = f"<strong>Severity:</strong><strong style='color: #00FF28;'> Medium</strong><br><br>"
+
 
     
 
@@ -603,7 +632,7 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
     patch_priority = f"<br><p><strong>Patch Priority:</strong> {result[0]['patch_priority'] if result[0]['patch_priority'] else "No patch priority"}</p>"
 
     combined_data = {
-        "description": descriptionTxt +severity+patch_priority+ detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
+        "description": mapped_priority_html+descriptionTxt +severity+patch_priority+ detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
         "subject": result[0].get('name'),
         "email": "abc@123.com",
         "priority": 4,
@@ -2721,7 +2750,7 @@ def changeVulnerabilityStatusForJira():
                             issue_id = int(issue.get("key").split('-')[1])
                             
                             if TicketingServiceDetails.objects.filter(ticketId=issue_id).exists():
-                                if issue.get("fields", {}).get("status", {}).get("name") == "To Do":
+                                if issue.get("fields", {}).get("status", {}).get("name") == "Done":
 
                                     ticket_details = TicketingServiceDetails.objects.get(ticketId=issue_id)
                                     vul_id = ticket_details.sq1VulId
