@@ -3,7 +3,7 @@ import json
 import requests
 import logging
 import threading
-import time
+import re
 import pytz
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -188,12 +188,9 @@ def freshservice_call_create_ticket():
 
                         description = f"<strong>Vulnerability synopsis:</strong> {result['description']}" if result['description'] is not None else "<strong>Vulnerability synopsis:</strong> NA"
 
-                        severity = f"<br><br><br><p><strong>Severity:</strong> {result['severity']}</p>"
-                        patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
-                        
 
                         combined_data = {
-                            "description": mapped_priority_html+description+severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                            "description": mapped_priority_html+description+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
                             "email": "abc@123.com",
                             "priority": mapped_priority,
@@ -208,7 +205,6 @@ def freshservice_call_create_ticket():
                             "Authorization": f"Basic {freshservice_key}"
                         }
                         response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                        # time.sleep(3)
                         if response.status_code == 201:
                             ticket_id = response.json()['ticket'].get("id")
                             ticket_data = response.json().get("ticket", {})
@@ -382,13 +378,8 @@ def freshservice_call_create_ticket():
                             servers_table = render_to_string('servers_table.html', {'servers': assets['servers']})
 
                             descriptionText = f"<strong>Vulnerability synopsis:</strong> {result['description']}" if result['description'] is not None else "<strong>Vulnerability synopsis:</strong> NA"
-
-                            severity = f"<br><br><br><p><strong>Risk:</strong> {result['severity']}</p>"
-                            patch_priority = f"<br><p><strong>Patch Priority:</strong> {result['patch_priority']}</p>"
-
-
                             combined_data = {
-                                "description":mapped_priority+ descriptionText +severity+patch_priority+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "description":mapped_priority+ descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
                                 "email": "abc@123.com",
                                 "priority": mapped_priority,
@@ -404,7 +395,6 @@ def freshservice_call_create_ticket():
                             }
 
                             response = requests.post(freshservice_url, json=combined_data, headers=headers)
-                            # time.sleep(3)
 
                             if response.status_code == 201:
                                 ticket_id = response.json()['ticket'].get("id")
@@ -476,8 +466,7 @@ def updateExploitsAndPatchesForFreshservice():
                 except requests.RequestException as e:
                     print(f"Request failed for {url}: {str(e)}")
                     return JsonResponse({"error": f"Request failed for {url}: {str(e)}"}, status=500)
-
-            # Processing tickets
+                
             for ticket in all_tickets:
                 try:
                     if TicketingServiceDetails.objects.filter(ticketId=ticket.get("id")).exists():
@@ -485,7 +474,6 @@ def updateExploitsAndPatchesForFreshservice():
                         vulnerabilityId = ticket_obj.sq1VulId
                         organizationId = ticket_obj.organizationId
 
-                        # Retrieve existing exploits and patches from the DB
                         exploits_list = ast.literal_eval(ticket_obj.exploitsList)
                         patches_list = ast.literal_eval(ticket_obj.patchesList)
 
@@ -511,10 +499,8 @@ def updateExploitsAndPatchesForFreshservice():
                             cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vulnerabilityId,))
                             patches = cursor.fetchall()
 
-                            # Generate required data for the Freshservice update
                             combined_data = generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches)
 
-                            # Update ticket in Freshservice
                             update_url = f"{url}/api/v2/tickets/{ticket.get('id')}"
                             response = requests.put(update_url, json=combined_data, headers=headers)
 
@@ -611,14 +597,9 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
         mapped_priority = 1
         mapped_priority_html = f"<strong>Risk:</strong><strong style='color: #00FF28;'> Medium</strong><br><br>"
 
-
-    
-
-    # Fetch asset details (workstations and servers)
     assetables_results = cursor.fetchall()
     assets = get_assets(cursor, assetables_results, organizationId)
 
-    # Render tables
     detection_summary_table = render_to_string('detection_summary_table.html', context)
     remediation_table = render_to_string('remedieationTableUpd.html', {'solutionPatch': result[0].get("solution_patch")})
     exploits_table_html = render_to_string('exploits_table.html', {'exploits': exploits})
@@ -628,11 +609,8 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
 
     descriptionTxt = result[0].get('description') if  result[0].get('description') else "No description added"
 
-    severity = f"<br><br><br><p><strong>Severity:</strong> {result[0]['severity'] if result[0]['severity'] else "No severity"}</p>"
-    patch_priority = f"<br><p><strong>Patch Priority:</strong> {result[0]['patch_priority'] if result[0]['patch_priority'] else "No patch priority"}</p>"
-
     combined_data = {
-        "description": mapped_priority_html+descriptionTxt +severity+patch_priority+ detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
+        "description": mapped_priority_html+descriptionTxt +detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
         "subject": result[0].get('name'),
         "email": "abc@123.com",
         "priority": 4,
@@ -838,8 +816,12 @@ def jira_call_create_ticket():
                         "last_identifies_on":result["last_identified_on"],
                         "patch_priority":result["patch_priority"]
                         }
-                    
-                    vulnerability_description = result['description'] if result['description'] is not None else "Description not added"
+
+                    vulnerability_description = None
+                    if result['description'] is not None:
+                        vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', "Vulnerability synopsis: "+ result['description'])).strip()
+                    else:
+                        vulnerability_description = "Vulnerability synopsis: Description not aded"
 
                     workstations = assets['workstations']
 
@@ -898,6 +880,8 @@ def jira_call_create_ticket():
                                     exploit[key]="NA"
                         return data
                     allExploits = convert_none_for_exploits(allExploits)
+                    allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+
                     allPatches = [
                         {
                             **patch,
@@ -941,25 +925,6 @@ def jira_call_create_ticket():
                                         "content": [
                                             {
                                                 "type": "text",
-                                                "text": "Severity: " + result['severity'] if result['severity'] is not None else "severity not added"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": "Patch Priority: " + result['patch_priority'] if result['patch_priority'] is not None else "patch priority not added"
-                                            }
-                                        ]
-                                    },
-                                    # Detection Summary section
-                                    {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
                                                 "text": "Detection Summary:"
                                             }
                                         ]
@@ -978,6 +943,7 @@ def jira_call_create_ticket():
                                                         "content": [
                                                             {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
                                                             {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
+                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Severity"}]}]},
                                                             {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
                                                             {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
                                                         ]
@@ -988,6 +954,7 @@ def jira_call_create_ticket():
                                                             "content": [
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["Severity"]}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
                                                             ]
@@ -1039,9 +1006,9 @@ def jira_call_create_ticket():
                                                         {
                                                             "type": "tableRow",
                                                             "content": [
-                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
-                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
-                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', rem["solution_patch"])).strip()}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', rem["solution_workaround"])).strip()}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', rem["preventive_measure"])).strip()}]}]}
                                                             ]
                                                         }
                                                         for rem in listOfRemediation
@@ -1301,7 +1268,6 @@ def jira_call_create_ticket():
 
                     try:
                         response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        # time.sleep(3)
                         if response.status_code == 201:
 
                             ticket_data = response.json()
@@ -1492,10 +1458,15 @@ def jira_call_create_ticket():
                             "Severity": result["severity"],
                             "first_identified_on": result["first_seen"],
                             "last_identifies_on":result["last_identified_on"],
+                            "severity":result["severity"],
                             "patch_priority":result["patch_priority"]
                             }
                         
-                        vulnerability_description = result['description'] if result['description'] is not None else "Description not added"
+                        vulnerability_description = None
+                        if result['description'] is not None:
+                            vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', "Vulnerability synopsis: "+ result['description'])).strip()
+                        else:
+                            vulnerability_description = "Vulnerability synopsis: Description not aded"
 
                         workstations = assets['workstations']
 
@@ -1547,6 +1518,8 @@ def jira_call_create_ticket():
                         listOfRemediation = convert_none(listOfRemediation)
 
                         allExploits = exploits
+                        
+
                         def convert_none_for_exploits(data):
                             for exploit in allExploits:
                                 for key, value in exploit.items():
@@ -1554,6 +1527,8 @@ def jira_call_create_ticket():
                                         exploit[key]="NA"
                             return data
                         allExploits = convert_none_for_exploits(allExploits)
+                        allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+
                         allPatches = [
                             {
                                 **patch,
@@ -1592,24 +1567,6 @@ def jira_call_create_ticket():
                                                 }
                                             ]
                                         },
-                                        {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": "Severity: " + result['severity'] if result['severity'] is not None else "severity not added"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": "Patch Priority: " + result['patch_priority'] if result['patch_priority'] is not None else "patch priority not added"
-                                            }
-                                        ]
-                                    },
                                         # Detection Summary section
                                         {
                                             "type": "paragraph",
@@ -1634,6 +1591,7 @@ def jira_call_create_ticket():
                                                             "content": [
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
+                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Severity"}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
                                                                 {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
                                                             ]
@@ -1644,6 +1602,7 @@ def jira_call_create_ticket():
                                                                 "content": [
                                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
                                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
+                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["Severity"]}]}]},
                                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
                                                                     {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
                                                                 ]
@@ -1957,7 +1916,6 @@ def jira_call_create_ticket():
 
                         try:
                             response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                            # time.sleep(3)
                             if response.status_code == 201:
 
                                 ticket_data = response.json()
@@ -2061,13 +2019,16 @@ def updateExploitsAndPatchesForJira():
                                 vulnerabilityResult = cursor.fetchall()
 
                                 if not vulnerabilityResult:
-                                    continue  # Skip if no vulnerability found
+                                    continue
 
                                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                                     vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
-                                    vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] is not None else "Description not added"
-                                    
+                                    vulnerability_description =None
+                                    if vulnerabilityResult[0]['description'] is not None:
+                                        vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', vulnerabilityResult[0]['description'])).strip()
+                                    else:
+                                        vulnerability_description = "Vulnerability synopsis: Description not aded"     
                                     mapped_priority = None 
 
                                     risk = float(vulnerabilityResult[0].get("risk"))
@@ -2203,6 +2164,8 @@ def updateExploitsAndPatchesForJira():
                                                     exploit[key]="NA"
                                         return data
                                     allExploits = convert_none_for_exploits(allExploits)
+                                    allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+                                    
                                     allPatches = [
                                         {
                                             **patch,
@@ -2237,24 +2200,6 @@ def updateExploitsAndPatchesForJira():
                                                             }
                                                         ]
                                                     },
-                                                    {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": "Severity: " + vulnerabilityResult[0]['severity'] if vulnerabilityResult[0]['severity'] is not None else "severity not added"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "paragraph",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": "Patch Priority: " + vulnerabilityResult[0]['patch_priority'] if vulnerabilityResult[0]['patch_priority'] is not None else "patch priority not added"
-                                            }
-                                        ]
-                                    },
                                                     # Detection Summary section
                                                     {
                                                         "type": "paragraph",
@@ -2847,14 +2792,14 @@ def createCardInTrello():
 
                     risk = float(result.get("risk"))
 
-                    # if 9.0 <= risk <= 10.0:
-                    #     mapped_priority = 4
-                    # elif 7.0 <= risk <= 8.9:
-                    #     mapped_priority = 3
-                    # elif 4.0 <= risk <= 6.9:
-                    #     mapped_priority = 2
-                    # elif 0.1 <= risk <= 3.9:
-                    #     mapped_priority = 1
+                    if 9.0 <= risk <= 10.0:
+                        mapped_priority = "Risk: Critical"
+                    elif 7.0 <= risk <= 8.9:
+                        mapped_priority = "Risk: High"
+                    elif 4.0 <= risk <= 6.9:
+                        mapped_priority = "Risk: Medium"
+                    elif 0.1 <= risk <= 3.9:
+                        mapped_priority = "Risk: Low"
 
                     cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                     exploits = cursor.fetchall()
@@ -2944,7 +2889,12 @@ def createCardInTrello():
                         "patch_priority":result["patch_priority"]
                         }
                     
-                    vulnerability_description = result['description'] if result['description'] is not None else "Description not added"
+                    vulnerability_description = None
+                    if result['description'] is not None:
+                        vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', "Vulnerability synopsis: "+ result['description'])).strip()
+                    else:
+                        vulnerability_description = "Vulnerability synopsis: Description not aded"
+
 
                     workstations = assets['workstations']
 
@@ -3019,93 +2969,89 @@ def createCardInTrello():
                         return data
                     allPatches = convert_none_for_patches(allPatches)
                     
-                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
+                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id, mapped_priority):
 
-                        # Adding the vulnerability description at the top with a prominent title
-                        vulnerability_section = f"# **{vulnerability_description}**\n\n"
-                        severity_section = f"## **Severity:** *{result['severity'] if result['severity'] is not None else 'Severity not added'}*\n\n"
-                        patch_priority_section = f"## **Patch Priority:** *{result['patch_priority'] if result['patch_priority'] is not None else 'Patch Priority not added'}*\n\n"
+                        vulnerability_section = f"### {vulnerability_description}\n\n"
+                        mapped_priority_section = f"### {mapped_priority}\n\n"
 
-                        # Detection section with subheadings for each detection
                         detection_section = "## Detection Summary\n\n"
                         if listOfDetection:
                             for i, detection in enumerate(listOfDetection, 1):
-                                detection_section += f"### Detection {i} \n\n"
-                                detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
-                                detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
-                                detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
-                                detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
-                                detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
-                                detection_section += "---\n\n"  
+                                detection_section += (
+                                    f"### Detection {i} \n"
+                                    f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
+                                    f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
+                                    f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
+                                    f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
+                                    f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                )
                         else:
                             detection_section += "_No detections found._\n\n"
 
-                        # Remediation section with subheadings for each remediation
                         remediation_section = "## Remediation Steps\n\n"
                         if listOfRemediation:
-                            for i, remediation in enumerate(listOfRemediation, 1):
-                                remediation_section += f"### Remediation {i} \n\n"
-                                remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
-                                remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
-                                remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
-                                remediation_section += "---\n\n" 
+                            remediation_section = (
+                                f"### Remediation {i} \n"
+                                f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
+                                f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
+                                f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                )
                         else:
-                            remediation_section += "_No remediation steps available._\n\n"
-
-                        # Exploits section with clear divisions for each exploit
+                            remediation_section = "_No remediation steps available._\n\n"
                         exploit_section = "## Exploits\n\n"
                         if allExploits:
                             for i, exploit in enumerate(allExploits, 1):
-                                exploit_section += f"### Exploit {i} \n\n"
-                                exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
-                                exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
-                                exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
-                                exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
-                                exploit_section += "---\n\n"  
+                                exploit_section += (
+                                    f"### Exploit {i} \n"
+                                    f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
+                                    f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
+                                    f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
+                                    f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                )
                         else:
                             exploit_section += "_No exploits found._\n\n"
 
-                        # Patches section with clear divisions for each patch
                         patch_section = "## Patches\n\n"
                         if allPatches:
                             for i, patch in enumerate(allPatches, 1):
-                                patch_section += f"### Patch {i} \n\n"
-                                patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
-                                patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
-                                patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
-                                patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n" 
-                                patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
-                                patch_section += "---\n\n"  
+                                patch_section += (
+                                    f"### Patch {i} \n"
+                                    f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
+                                    f"- **Description**: *{patch.get('description', 'N/A')}*\n"
+                                    f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
+                                    f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
+                                    f"- **OS**: *{patch.get('os', 'N/A')}*\n"
+                                    # "---\n\n"
+                                )
                         else:
                             patch_section += "_No patches available._\n\n"
 
-                    
                         workstation_section = "## Workstations\n\n"
                         if workstations:
                             for i, workstation in enumerate(workstations, 1):
-                                workstation_section += f"### Workstation {i} \n\n"
-                                workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
-                                workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
-                                workstation_section += "---\n\n"
+                                workstation_section += (
+                                    f"### Workstation {i} \n"
+                                    f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
+                                    f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
+                                    # "---\n\n"
+                                )
                         else:
                             workstation_section += "_No workstations found._\n\n"
 
-                        # Server section with detailed lists
                         server_section = "## Servers\n\n"
                         if servers:
                             for i, server in enumerate(servers, 1):
-                                server_section += f"### Server {i} \n\n"
-                                server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
-                                server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
-                                server_section += "---\n\n"
+                                server_section += (
+                                    f"### Server {i} \n"
+                                    f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
+                                    f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                )
                         else:
                             server_section += "_No servers found._\n\n"
 
-                        # Combine all sections
                         description = (
+                            mapped_priority_section +
                             vulnerability_section +
-                            severity_section +
-                            patch_priority_section +
                             detection_section +
                             remediation_section +
                             exploit_section +
@@ -3117,7 +3063,7 @@ def createCardInTrello():
                         return description
 
 
-                    description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vul_id)
+                    description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vul_id,mapped_priority)
 
                     query = {
                         'key': trelloKey,
@@ -3235,14 +3181,14 @@ def createCardInTrello():
 
                         risk = float(result.get("risk"))
 
-                        # if 9.0 <= risk <= 10.0:
-                        #     mapped_priority = 4
-                        # elif 7.0 <= risk <= 8.9:
-                        #     mapped_priority = 3
-                        # elif 4.0 <= risk <= 6.9:
-                        #     mapped_priority = 2
-                        # elif 0.1 <= risk <= 3.9:
-                        #     mapped_priority = 1
+                        if 9.0 <= risk <= 10.0:
+                            mapped_priority = "Risk: Critical"
+                        elif 7.0 <= risk <= 8.9:
+                            mapped_priority = "Risk: High"
+                        elif 4.0 <= risk <= 6.9:
+                            mapped_priority = "Risk: Medium"
+                        elif 0.1 <= risk <= 3.9:
+                            mapped_priority = "Risk: Low"
 
                         cursor.execute("SELECT * FROM exploits WHERE vul_id = %s AND organization_id = %s", (vul_id, organization_id))
                         exploits = cursor.fetchall()
@@ -3327,7 +3273,11 @@ def createCardInTrello():
                             "patch_priority":result["patch_priority"]
                             }
                         
-                        vulnerability_description = result['description'] if result['description'] is not None else "Description not added"
+                        vulnerability_description = None
+                        if result['description'] is not None:
+                            vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '',"Vulnerability synopsis: "+ result['description'])).strip()
+                        else:
+                            vulnerability_description = "Description not aded"
 
                         workstations = assets['workstations']
 
@@ -3401,95 +3351,89 @@ def createCardInTrello():
                                         patch[key]="NA"
                             return data
                         allPatches = convert_none_for_patches(allPatches)
-                        
-                        def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id):
 
-                            # Adding the vulnerability description at the top with a prominent title
-                            vulnerability_section = f"# **{vulnerability_description}**\n\n"
+                        def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id, mapped_priority):
 
-                            severity_section = f"## **Severity:** *{result['severity'] if result['severity'] is not None else 'Severity not added'}*\n\n"
-                            patch_priority_section = f"## **Patch Priority:** *{result['patch_priority'] if result['patch_priority'] is not None else 'Patch Priority not added'}*\n\n"
+                            vulnerability_section = f"### {vulnerability_description}\n\n"
+                            mapped_priority_section = f"### {mapped_priority}\n\n"
 
-                            # Detection section with subheadings for each detection
                             detection_section = "## Detection Summary\n\n"
                             if listOfDetection:
                                 for i, detection in enumerate(listOfDetection, 1):
-                                    detection_section += f"### Detection {i} \n\n"
-                                    detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
-                                    detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
-                                    detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
-                                    detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
-                                    detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
-                                    detection_section += "---\n\n"  # Add a horizontal rule to separate detections
+                                    detection_section += (
+                                        f"### Detection {i} \n"
+                                        f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
+                                        f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
+                                        f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
+                                        f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
+                                        f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                    )
                             else:
                                 detection_section += "_No detections found._\n\n"
 
-                            # Remediation section with subheadings for each remediation
                             remediation_section = "## Remediation Steps\n\n"
                             if listOfRemediation:
-                                for i, remediation in enumerate(listOfRemediation, 1):
-                                    remediation_section += f"### Remediation {i} \n\n"
-                                    remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
-                                    remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
-                                    remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
-                                    remediation_section += "---\n\n"  # Horizontal rule between items
+                                remediation_section = (
+                                    f"### Remediation {i} \n"
+                                    f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
+                                    f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
+                                    f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                    )
                             else:
-                                remediation_section += "_No remediation steps available._\n\n"
+                                remediation_section = "_No remediation steps available._\n\n"
 
-                            # Exploits section with clear divisions for each exploit
                             exploit_section = "## Exploits\n\n"
                             if allExploits:
                                 for i, exploit in enumerate(allExploits, 1):
-                                    exploit_section += f"### Exploit {i} \n\n"
-                                    exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
-                                    exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
-                                    exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
-                                    exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
-                                    exploit_section += "---\n\n"  # Horizontal rule between exploits
+                                    exploit_section += (
+                                        f"### Exploit {i} \n"
+                                        f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
+                                        f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
+                                        f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
+                                        f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                    )
                             else:
                                 exploit_section += "_No exploits found._\n\n"
 
-                            # Patches section with clear divisions for each patch
                             patch_section = "## Patches\n\n"
                             if allPatches:
                                 for i, patch in enumerate(allPatches, 1):
-                                    patch_section += f"### Patch {i} \n\n"
-                                    patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
-                                    patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
-                                    patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
-                                    patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
-                                    patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
-                                    patch_section += "---\n\n"  # Horizontal rule between patches
+                                    patch_section += (
+                                        f"### Patch {i} \n"
+                                        f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
+                                        f"- **Description**: *{patch.get('description', 'N/A')}*\n"
+                                        f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
+                                        f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
+                                        f"- **OS**: *{patch.get('os', 'N/A')}*\n"
+                                    )
                             else:
                                 patch_section += "_No patches available._\n\n"
 
-                            # Workstation section with detailed lists
                             workstation_section = "## Workstations\n\n"
                             if workstations:
                                 for i, workstation in enumerate(workstations, 1):
-                                    workstation_section += f"### Workstation {i} \n\n"
-                                    workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
-                                    workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
-                                    workstation_section += "---\n\n"
+                                    workstation_section += (
+                                        f"### Workstation {i} \n"
+                                        f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
+                                        f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
+                                    )
                             else:
                                 workstation_section += "_No workstations found._\n\n"
 
-                            # Server section with detailed lists
                             server_section = "## Servers\n\n"
                             if servers:
                                 for i, server in enumerate(servers, 1):
-                                    server_section += f"### Server {i} \n\n"
-                                    server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
-                                    server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
-                                    server_section += "---\n\n"
+                                    server_section += (
+                                        f"### Server {i} \n"
+                                        f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
+                                        f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                    )
                             else:
                                 server_section += "_No servers found._\n\n"
 
-                            # Combine all sections
                             description = (
+                                mapped_priority_section +
                                 vulnerability_section +
-                                severity_section +
-                                patch_priority_section +
                                 detection_section +
                                 remediation_section +
                                 exploit_section +
@@ -3499,8 +3443,9 @@ def createCardInTrello():
                             )
 
                             return description
+                        
 
-                        description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vul_id)
+                        description = format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers,vulnerability_description, vul_id,mapped_priority)
 
                         combined_data = {
                             "name": result.get("name"),
@@ -3621,6 +3566,12 @@ def updateExploitsAndPatchesForTrello():
                                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                                     vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] else "Description not added"
                                     vulnerability_description = vulnerabilityResult[0]['description'] if vulnerabilityResult[0]['description'] else "Description not added"
+
+                                    vulnerability_description = None
+                                    if vulnerabilityResult[0]['description'] is not None:
+                                        vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '',"Vulnerability synopsis: "+ vulnerabilityResult[0]['description'])).strip()
+                                    else:
+                                        vulnerability_description = "Description not aded"
                                     
                                     cves = (vulnerabilityResult[0]).get("CVEs")
                                     cves_string = ", ".join(json.loads(cves)["cves"])
@@ -3647,7 +3598,6 @@ def updateExploitsAndPatchesForTrello():
                                             if value is None:
                                                 detection[key] = "NA"
 
-                                    # Remediation Summary
                                     remediationObj = {
                                             "solution_patch": vulnerabilityResult[0]["solution_patch"],
                                             "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
@@ -3663,9 +3613,7 @@ def updateExploitsAndPatchesForTrello():
                                         return data
 
                                     listOfRemediation = convert_none(listOfRemediation)
-                                    
 
-                                    # workstations and servers
                                     cursor.execute("""
                                     SELECT assetable_type, assetable_id
                                     FROM assetables
@@ -3733,8 +3681,6 @@ def updateExploitsAndPatchesForTrello():
 
                                     servers = convert_none_servers(servers)
 
-                                    # exploits and patches
-
                                     allExploits = exploits
                                     def convert_none_for_exploits(data):
                                         for exploit in allExploits:
@@ -3759,93 +3705,104 @@ def updateExploitsAndPatchesForTrello():
                                         return data
                                     allPatches = convert_none_for_patches(allPatches)
 
-                                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id, severity_section, patch_priority_section):
+                                    mapped_priority = None
 
-                                        # Adding the vulnerability description at the top with a prominent title
-                                        vulnerability_section = f"# **{vulnerability_description}**\n\n"
+                                    risk = float((vulnerabilityResult[0]).get("risk"))
 
-                                        severity_section = f"## **Severity:** *{severity_section}*\n\n"
-                                        patch_priority_section = f"## **Patch Priority:** *{patch_priority_section}*\n\n"
+                                    if 9.0 <= risk <= 10.0:
+                                        mapped_priority = "Risk: Critical"
+                                    elif 7.0 <= risk <= 8.9:
+                                        mapped_priority = "Risk: High"
+                                    elif 4.0 <= risk <= 6.9:
+                                        mapped_priority = "Risk: Medium"
+                                    elif 0.1 <= risk <= 3.9:
+                                        mapped_priority = "Risk: Low"
 
-                                        # Detection section with subheadings for each detection
+                                    def format_trello_description(listOfDetection, listOfRemediation, allExploits, allPatches, workstations, servers, vulnerability_description, vul_id, mapped_priority):
+
+                                        mapped_priority_section = f"### {mapped_priority}\n\n"
+                                        vulnerability_section = f"### {vulnerability_description}\n\n"
+
                                         detection_section = "## Detection Summary\n\n"
                                         if listOfDetection:
                                             for i, detection in enumerate(listOfDetection, 1):
-                                                detection_section += f"### Detection {i} \n\n"
-                                                detection_section += f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
-                                                detection_section += f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
-                                                detection_section += f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
-                                                detection_section += f"- **Last Identified On**: *{detection.get('last_identifies_on', 'N/A')}*\n"
-                                                detection_section += f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n\n"
-                                                detection_section += "---\n\n"  # Add a horizontal rule to separate detections
+                                                detection_section += (
+                                                    f"### Detection {i} \n"
+                                                    f"- **CVE**: *{detection.get('CVE', 'N/A')}*\n"
+                                                    f"- **Severity**: *{detection.get('Severity', 'N/A')}*\n"
+                                                    f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
+                                                    f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
+                                                    f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                                )
                                         else:
                                             detection_section += "_No detections found._\n\n"
 
-                                        # Remediation section with subheadings for each remediation
                                         remediation_section = "## Remediation Steps\n\n"
                                         if listOfRemediation:
-                                            for i, remediation in enumerate(listOfRemediation, 1):
-                                                remediation_section += f"### Remediation {i} \n\n"
-                                                remediation_section += f"- **Patch Solution**: *{remediation.get('solution_patch', 'N/A')}*\n"
-                                                remediation_section += f"- **Workaround**: *{remediation.get('solution_workaround', 'N/A')}*\n"
-                                                remediation_section += f"- **Preventive Measures**: *{remediation.get('preventive_measure', 'N/A')}*\n\n"
-                                                remediation_section += "---\n\n"  # Horizontal rule between items
+                                            remediation_section = (
+                                                f"### Remediation {i} \n"
+                                                f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
+                                                f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
+                                                f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                                )
                                         else:
-                                            remediation_section += "_No remediation steps available._\n\n"
+                                            remediation_section = "_No remediation steps available._\n\n"
 
-                                        # Exploits section with clear divisions for each exploit
                                         exploit_section = "## Exploits\n\n"
                                         if allExploits:
                                             for i, exploit in enumerate(allExploits, 1):
-                                                exploit_section += f"### Exploit {i} \n\n"
-                                                exploit_section += f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
-                                                exploit_section += f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
-                                                exploit_section += f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
-                                                exploit_section += f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n\n"
-                                                exploit_section += "---\n\n"  # Horizontal rule between exploits
+                                                exploit_section += (
+                                                    f"### Exploit {i} \n"
+                                                    f"- **Name**: *{exploit.get('name', 'N/A')}*\n"
+                                                    f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
+                                                    f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
+                                                    f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                                )
                                         else:
                                             exploit_section += "_No exploits found._\n\n"
 
-                                        # Patches section with clear divisions for each patch
                                         patch_section = "## Patches\n\n"
                                         if allPatches:
                                             for i, patch in enumerate(allPatches, 1):
-                                                patch_section += f"### Patch {i} \n\n"
-                                                patch_section += f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
-                                                patch_section += f"- **Description**: *{patch.get('description', 'N/A')}*\n"
-                                                patch_section += f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
-                                                patch_section += f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"  # URL link formatting
-                                                patch_section += f"- **OS**: *{patch.get('os', 'N/A')}*\n\n"
-                                                patch_section += "---\n\n"  # Horizontal rule between patches
+                                                patch_section += (
+                                                    f"### Patch {i} \n"
+                                                    f"- **Solution**: *{patch.get('solution', 'N/A')}*\n"
+                                                    f"- **Description**: *{patch.get('description', 'N/A')}*\n"
+                                                    f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
+                                                    f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
+                                                    f"- **OS**: *{patch.get('os', 'N/A')}*\n"
+                                                )
                                         else:
                                             patch_section += "_No patches available._\n\n"
 
-                                        # Workstation section with detailed lists
+
                                         workstation_section = "## Workstations\n\n"
                                         if workstations:
                                             for i, workstation in enumerate(workstations, 1):
-                                                workstation_section += f"### Workstation {i} \n\n"
-                                                workstation_section += f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
-                                                workstation_section += f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n\n"
-                                                workstation_section += "---\n\n"
+                                                workstation_section += (
+                                                    f"### Workstation {i} \n"
+                                                    f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
+                                                    f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
+                                                    "---\n\n"
+                                                )
                                         else:
                                             workstation_section += "_No workstations found._\n\n"
 
-                                        # Server section with detailed lists
                                         server_section = "## Servers\n\n"
                                         if servers:
                                             for i, server in enumerate(servers, 1):
-                                                server_section += f"### Server {i} \n\n"
-                                                server_section += f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
-                                                server_section += f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n\n"
-                                                server_section += "---\n\n"
+                                                server_section += (
+                                                    f"### Server {i} \n"
+                                                    f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
+                                                    f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                                    "---\n\n"
+                                                )
                                         else:
                                             server_section += "_No servers found._\n\n"
 
                                         full_description = (
+                                            mapped_priority_section +
                                             vulnerability_section +
-                                            severity_section + "\n\n" +
-                                            patch_priority_section + "\n\n" +
                                             detection_section +
                                             remediation_section +
                                             exploit_section +
@@ -3854,21 +3811,13 @@ def updateExploitsAndPatchesForTrello():
                                             server_section
                                         )
 
-                                        # Return the full formatted description
                                         return full_description
 
-                                    # severity_section = f"# **{vulnerabilityResult['severity'] if vulnerabilityResult['severity'] is not None else "Severity not added"}**\n\n"
-                                    # patch_priority_section = f"# **{vulnerabilityResult['patch_priority'] if vulnerabilityResult['patch_priority'] is not None else "Patch Priority not added"}**\n\n"
-                                    
-                                    severity_section = (vulnerabilityResult[0]).get('severity') if (vulnerabilityResult[0]).get('severity') is not None else "Severity not added"
-                                    patch_priority_section = (vulnerabilityResult[0]).get('patch_priority') if (vulnerabilityResult[0]).get('patch_priority') is not None else "Patch Priority not added"
-
-
-                                    
                                     description = format_trello_description(
                                         listOfDetection, listOfRemediation, allExploits, 
                                         allPatches, workstations, servers, 
-                                        vulnerability_description, vulnerabilityId, severity_section, patch_priority_section
+                                        vulnerability_description, vulnerabilityId,
+                                        mapped_priority
                                     )
 
                                     query = {
@@ -3981,7 +3930,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=10, minute=15, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=4, minute=30, second=0, microsecond=0)
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
