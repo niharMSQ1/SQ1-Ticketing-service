@@ -135,6 +135,8 @@ def freshservice_call_create_ticket():
                         freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
                         freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key") 
 
+                        requestedForEmail = (json.loads(ticketing_tool.get('values'))).get('email')
+
                         resultCVEs = json.loads(result.get("CVEs", {}))
                         if isinstance(resultCVEs, dict):
                             cve_list = resultCVEs.get("cves", [])
@@ -192,7 +194,7 @@ def freshservice_call_create_ticket():
                         combined_data = {
                             "description": mapped_priority_html+description+ detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                             "subject": result.get("name"),
-                            "email": "abc@123.com",
+                            "email": requestedForEmail,
                             "priority": mapped_priority,
                             "status": 2,
                             "cc_emails": [],
@@ -326,6 +328,8 @@ def freshservice_call_create_ticket():
                             freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
                             freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key")
 
+                            requestedForEmail = (json.loads(ticketing_tool.get('values'))).get('email')
+
                             resultCVEs = json.loads(result.get("CVEs", {}))
                             if isinstance(resultCVEs, dict):
                                 cve_list = resultCVEs.get("cves", [])
@@ -381,7 +385,7 @@ def freshservice_call_create_ticket():
                             combined_data = {
                                 "description":mapped_priority+ descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
-                                "email": "abc@123.com",
+                                "email": requestedForEmail,
                                 "priority": mapped_priority,
                                 "status": 2,
                                 "cc_emails": [],
@@ -443,6 +447,7 @@ def updateExploitsAndPatchesForFreshservice():
                     values = json.loads(tool.get("values"))
                     url = values.get("url")
                     key = values.get("key")
+                    requestedForEmail = json.loads(tool['values']).get("email")
                     
                     headers = {
                         "Content-Type": "application/json",
@@ -499,7 +504,7 @@ def updateExploitsAndPatchesForFreshservice():
                             cursor.execute("SELECT * FROM patch WHERE vul_id = %s", (vulnerabilityId,))
                             patches = cursor.fetchall()
 
-                            combined_data = generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches)
+                            combined_data = generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches, requestedForEmail)
 
                             update_url = f"{url}/api/v2/tickets/{ticket.get('id')}"
                             response = requests.put(update_url, json=combined_data, headers=headers)
@@ -537,7 +542,7 @@ def determine_priority(risk):
         return 1
     return None
 
-def generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches):
+def generate_combined_data(cursor, result, vulnerabilityId, organizationId, exploits, patches, requestedForEmail):
     resultCVEs = json.loads(result[0].get("CVEs", "[]"))
     cve_list = resultCVEs.get("cves", []) if isinstance(resultCVEs, dict) else []
     cve_string = ", ".join(cve_list)
@@ -612,7 +617,7 @@ def generate_combined_data(cursor, result, vulnerabilityId, organizationId, expl
     combined_data = {
         "description": mapped_priority_html+descriptionTxt +detection_summary_table + remediation_table + exploits_table_html + patch_table_html + workstation_table + servers_table,
         "subject": result[0].get('name'),
-        "email": "abc@123.com",
+        "email": requestedForEmail,
         "priority": 4,
         "status": 2,
         "cc_emails": [],
