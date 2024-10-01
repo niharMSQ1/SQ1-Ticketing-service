@@ -2165,7 +2165,7 @@ def updateExploitsAndPatchesForJira():
                                         return data
                                     allExploits = convert_none_for_exploits(allExploits)
                                     allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
-                                    
+
                                     allPatches = [
                                         {
                                             **patch,
@@ -2953,6 +2953,8 @@ def createCardInTrello():
                                     exploit[key]="NA"
                         return data
                     allExploits = convert_none_for_exploits(allExploits)
+                    allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+
                     allPatches = [
                         {
                             **patch,
@@ -3336,6 +3338,8 @@ def createCardInTrello():
                                         exploit[key]="NA"
                             return data
                         allExploits = convert_none_for_exploits(allExploits)
+                        allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+
                         allPatches = [
                             {
                                 **patch,
@@ -3689,6 +3693,7 @@ def updateExploitsAndPatchesForTrello():
                                                     exploit[key]="NA"
                                         return data
                                     allExploits = convert_none_for_exploits(allExploits)
+                                    allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
                                     allPatches = [
                                         {
                                             **patch,
