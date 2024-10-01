@@ -3002,6 +3002,7 @@ def createCardInTrello():
                                 f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
                                 f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
                                 f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                "---\n\n"
                                 )
                         else:
                             remediation_section = "_No remediation steps available._\n\n"
