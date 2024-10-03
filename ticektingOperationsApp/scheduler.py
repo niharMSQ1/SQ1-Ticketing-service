@@ -2998,11 +2998,11 @@ def createCardInTrello():
                         remediation_section = "## Remediation Steps\n\n"
                         if listOfRemediation:
                             remediation_section = (
-                                f"### Remediation {i}"
-                                # f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
-                                # f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
-                                # f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
-                                # "---\n\n"
+                                f"### Remediation {i} \n"
+                                f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
+                                f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
+                                f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                "---\n\n"
                                 )
                         else:
                             remediation_section = "_No remediation steps available._\n\n"
@@ -3388,6 +3388,7 @@ def createCardInTrello():
                                     f"- **Patch Solution**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
                                     f"- **Workaround**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
                                     f"- **Preventive Measures**: *{(re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                    "---\n\n"
                                     )
                             else:
                                 remediation_section = "_No remediation steps available._\n\n"
@@ -3939,7 +3940,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=15, second=30, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=40, second=30, microsecond=0)
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
