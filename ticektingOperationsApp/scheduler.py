@@ -2991,6 +2991,7 @@ def createCardInTrello():
                                     f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
                                     f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
                                     f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                    "---\n\n"
                                 )
                         else:
                             detection_section += "_No detections found._\n\n"
@@ -2998,19 +2999,12 @@ def createCardInTrello():
                         remediation_section = "## Remediation Steps\n\n"
                         if listOfRemediation:
                             remediation_section = (
-                                "### Remediation {i} \n"
-                                "- **Patch Solution**: *{patch_solution}*\n"
-                                "- **Workaround**: *{workaround}*\n"
-                                "- **Preventive Measures**: *{preventive_measures}*\n"
+                                f"### Remediation {i} \n"
+                                f"- **Patch Solution**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A')).strip())}*\n"
+                                f"- **Workaround**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A')).strip())}*\n"
+                                f"- **Preventive Measures**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A')).strip())}*\n"
                                 "---\n\n"
-                            ).format(
-                                i=i,
-                                patch_solution=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
-                                workaround=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
-                                preventive_measures=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
                             )
-
-
                         else:
                             remediation_section = "_No remediation steps available._\n\n"
                         exploit_section = "## Exploits\n\n"
@@ -3022,6 +3016,7 @@ def createCardInTrello():
                                     f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
                                     f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
                                     f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                    "---\n\n"
                                 )
                         else:
                             exploit_section += "_No exploits found._\n\n"
@@ -3036,7 +3031,7 @@ def createCardInTrello():
                                     f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
                                     f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
                                     f"- **OS**: *{patch.get('os', 'N/A')}*\n"
-                                    # "---\n\n"
+                                    "---\n\n"
                                 )
                         else:
                             patch_section += "_No patches available._\n\n"
@@ -3048,7 +3043,7 @@ def createCardInTrello():
                                     f"### Workstation {i} \n"
                                     f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
                                     f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
-                                    # "---\n\n"
+                                    "---\n\n"
                                 )
                         else:
                             workstation_section += "_No workstations found._\n\n"
@@ -3060,6 +3055,7 @@ def createCardInTrello():
                                     f"### Server {i} \n"
                                     f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
                                     f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                    "---\n\n"
                                 )
                         else:
                             server_section += "_No servers found._\n\n"
@@ -3384,6 +3380,7 @@ def createCardInTrello():
                                         f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
                                         f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
                                         f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                        "---\n\n"
                                     )
                             else:
                                 detection_section += "_No detections found._\n\n"
@@ -3391,18 +3388,12 @@ def createCardInTrello():
                             remediation_section = "## Remediation Steps\n\n"
                             if listOfRemediation:
                                 remediation_section = (
-                                    "### Remediation {i} \n"
-                                    "- **Patch Solution**: *{patch_solution}*\n"
-                                    "- **Workaround**: *{workaround}*\n"
-                                    "- **Preventive Measures**: *{preventive_measures}*\n"
-                                    "---\n\n"
-                                ).format(
-                                    i=i,
-                                    patch_solution=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
-                                    workaround=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
-                                    preventive_measures=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
-                                )
-
+                                f"### Remediation {i} \n"
+                                f"- **Patch Solution**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A')).strip())}*\n"
+                                f"- **Workaround**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A')).strip())}*\n"
+                                f"- **Preventive Measures**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A')).strip())}*\n"
+                                "---\n\n"
+                            )
 
                             else:
                                 remediation_section = "_No remediation steps available._\n\n"
@@ -3416,6 +3407,7 @@ def createCardInTrello():
                                         f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
                                         f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
                                         f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                        "---\n\n"
                                     )
                             else:
                                 exploit_section += "_No exploits found._\n\n"
@@ -3430,6 +3422,7 @@ def createCardInTrello():
                                         f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
                                         f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
                                         f"- **OS**: *{patch.get('os', 'N/A')}*\n"
+                                        "---\n\n"
                                     )
                             else:
                                 patch_section += "_No patches available._\n\n"
@@ -3441,6 +3434,7 @@ def createCardInTrello():
                                         f"### Workstation {i} \n"
                                         f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
                                         f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
+                                        "---\n\n"
                                     )
                             else:
                                 workstation_section += "_No workstations found._\n\n"
@@ -3452,6 +3446,7 @@ def createCardInTrello():
                                         f"### Server {i} \n"
                                         f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
                                         f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                        "---\n\n"
                                     )
                             else:
                                 server_section += "_No servers found._\n\n"
@@ -3759,6 +3754,7 @@ def updateExploitsAndPatchesForTrello():
                                                     f"- **First Identified On**: *{detection.get('first_identified_on', 'N/A')}*\n"
                                                     f"- **Last Identified On**: *{detection.get('last_identified_on', 'N/A')}*\n"
                                                     f"- **Patch Priority**: *{detection.get('patch_priority', 'N/A')}*\n"
+                                                    "---\n\n"
                                                 )
                                         else:
                                             detection_section += "_No detections found._\n\n"
@@ -3766,15 +3762,11 @@ def updateExploitsAndPatchesForTrello():
                                         remediation_section = "## Remediation Steps\n\n"
                                         if listOfRemediation:
                                             remediation_section = (
-                                                "### Remediation {i} \n"
-                                                "- **Patch Solution**: *{patch_solution}*\n"
-                                                "- **Workaround**: *{workaround}*\n"
-                                                "- **Preventive Measures**: *{preventive_measures}*\n"
-                                            ).format(
-                                                i=i,
-                                                patch_solution=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
-                                                workaround=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
-                                                preventive_measures=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
+                                                f"### Remediation {i} \n"
+                                                f"- **Patch Solution**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A')).strip())}*\n"
+                                                f"- **Workaround**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A')).strip())}*\n"
+                                                f"- **Preventive Measures**: *{re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A')).strip())}*\n"
+                                                "---\n\n"
                                             )
 
                                         else:
@@ -3789,6 +3781,7 @@ def updateExploitsAndPatchesForTrello():
                                                     f"- **Description**: *{exploit.get('description', 'N/A')}*\n"
                                                     f"- **Complexity**: *{exploit.get('complexity', 'N/A')}*\n"
                                                     f"- **Dependency**: *{exploit.get('dependency', 'N/A')}*\n"
+                                                    "---\n\n"
                                                 )
                                         else:
                                             exploit_section += "_No exploits found._\n\n"
@@ -3803,6 +3796,7 @@ def updateExploitsAndPatchesForTrello():
                                                     f"- **Complexity**: *{patch.get('complexity', 'N/A')}*\n"
                                                     f"- **URL**: [Link]({patch.get('url', 'N/A')})\n"
                                                     f"- **OS**: *{patch.get('os', 'N/A')}*\n"
+                                                    "---\n\n"
                                                 )
                                         else:
                                             patch_section += "_No patches available._\n\n"
@@ -3815,6 +3809,7 @@ def updateExploitsAndPatchesForTrello():
                                                     f"### Workstation {i} \n"
                                                     f"- **Host Name**: *{workstation.get('host_name', 'N/A')}*\n"
                                                     f"- **IP Address**: *{workstation.get('ip_address', 'N/A')}*\n"
+                                                    "---\n\n"
                                                 )
                                         else:
                                             workstation_section += "_No workstations found._\n\n"
@@ -3826,6 +3821,7 @@ def updateExploitsAndPatchesForTrello():
                                                     f"### Server {i} \n"
                                                     f"- **Host Name**: *{server.get('host_name', 'N/A')}*\n"
                                                     f"- **IP Address**: *{server.get('ip_address', 'N/A')}*\n"
+                                                    "---\n\n"
                                                 )
                                         else:
                                             server_section += "_No servers found._\n\n"
@@ -3960,7 +3956,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=50, second=30, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=40, second=30, microsecond=0)
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
