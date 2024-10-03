@@ -2998,12 +2998,18 @@ def createCardInTrello():
                         remediation_section = "## Remediation Steps\n\n"
                         if listOfRemediation:
                             remediation_section = (
-                                    f"### Remediation {i} \n"
-                                    f"- **Patch Solution**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
-                                    f"- **Workaround**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
-                                    f"- **Preventive Measures**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
-                                    "---\n\n"
-                                )
+                                "### Remediation {i} \n"
+                                "- **Patch Solution**: *{patch_solution}*\n"
+                                "- **Workaround**: *{workaround}*\n"
+                                "- **Preventive Measures**: *{preventive_measures}*\n"
+                                "---\n\n"
+                            ).format(
+                                i=i,
+                                patch_solution=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
+                                workaround=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
+                                preventive_measures=re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
+                            )
+
 
                         else:
                             remediation_section = "_No remediation steps available._\n\n"
@@ -3385,12 +3391,18 @@ def createCardInTrello():
                             remediation_section = "## Remediation Steps\n\n"
                             if listOfRemediation:
                                 remediation_section = (
-                                    f"### Remediation {i} \n"
-                                    f"- **Patch Solution**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
-                                    f"- **Workaround**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
-                                    f"- **Preventive Measures**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
+                                    "### Remediation {i} \n"
+                                    "- **Patch Solution**: *{patch_solution}*\n"
+                                    "- **Workaround**: *{workaround}*\n"
+                                    "- **Preventive Measures**: *{preventive_measures}*\n"
                                     "---\n\n"
+                                ).format(
+                                    i=i,
+                                    patch_solution=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
+                                    workaround=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
+                                    preventive_measures=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
                                 )
+
 
                             else:
                                 remediation_section = "_No remediation steps available._\n\n"
@@ -3754,11 +3766,16 @@ def updateExploitsAndPatchesForTrello():
                                         remediation_section = "## Remediation Steps\n\n"
                                         if listOfRemediation:
                                             remediation_section = (
-                                            f"### Remediation {i} \n"
-                                            f"- **Patch Solution**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_patch', 'N/A'))).strip())}*\n"
-                                            f"- **Workaround**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('solution_workaround', 'N/A'))).strip())}*\n"
-                                            f"- **Preventive Measures**: *{(re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', (listOfRemediation[0]).get('preventive_measure', 'N/A'))).strip())}*\n"
-                                        )
+                                                "### Remediation {i} \n"
+                                                "- **Patch Solution**: *{patch_solution}*\n"
+                                                "- **Workaround**: *{workaround}*\n"
+                                                "- **Preventive Measures**: *{preventive_measures}*\n"
+                                            ).format(
+                                                i=i,
+                                                patch_solution=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_patch', 'N/A'))).strip(),
+                                                workaround=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('solution_workaround', 'N/A'))).strip(),
+                                                preventive_measures=re.sub(r'\\s+', ' ', re.sub(r'<.*?>', '', listOfRemediation[0].get('preventive_measure', 'N/A'))).strip()
+                                            )
 
                                         else:
                                             remediation_section = "_No remediation steps available._\n\n"
