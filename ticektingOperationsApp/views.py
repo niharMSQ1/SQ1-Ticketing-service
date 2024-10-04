@@ -266,7 +266,7 @@ def updateJiraPatchesAndExploits(request):
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-@api_view(['GET'])
+@api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def cardCreateTrello(request):
     from .scheduler import createCardInTrello

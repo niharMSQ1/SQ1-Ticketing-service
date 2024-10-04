@@ -3208,7 +3208,7 @@ def createCardInTrello():
                         print(f"Timeout error occurred: {timeout_err}")
                     except requests.exceptions.RequestException as req_err:
                         print(f"An error occurred: {req_err}")
-                return JsonResponse({"status":"Success","message": "Cards created successfully"}, status=200)
+                # return JsonResponse({"status":"Success","message": "Cards created successfully"}, status=200)
             
             else:
                 latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
@@ -3605,7 +3605,52 @@ def createCardInTrello():
                             print(f"An error occurred: {req_err}")
                         else:
                             print("")
-                    return JsonResponse({"status":"Success","message": "New issues added"}, status=200)
+                    # return JsonResponse({"status":"Success","message": "New issues added"}, status=200)
+                
+            cursor.execute("SELECT * FROM organizations;")
+            orgs = cursor.fetchall()
+            orgIds = []
+            for i in orgs:
+                orgId = i.get("id")
+                orgIds.append(orgId)
+
+            for orgId in orgIds:
+
+                checkOrgIdExists =(TicketingServiceDetails.objects.filter(organizationId = orgId, ticketServicePlatform='Trello',isActive=True)).exists()
+                if checkOrgIdExists:
+                    allTrelloTickets = TicketingServiceDetails.objects.filter(organizationId = orgId,ticketServicePlatform='Trello')
+                    cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'trello'", (organization_id,))
+                    ticketing_tool = cursor.fetchone()
+
+                    trello_key =(json.loads(ticketing_tool.get("values"))).get('key')
+                    boardId = (json.loads(ticketing_tool.get("values"))).get('board_id')
+                    token =  (json.loads(ticketing_tool.get("values"))).get('token')
+                    
+
+                    trelloIds = []
+                    for ticket in allTrelloTickets:
+                        trelloId = ticket.ticketIdIfString
+                        trelloIds.append(trelloId)
+
+                    try:
+                        getAllIdsRequest = requests.get(f'https://api.trello.com/1/boards/{boardId}/cards?key={trello_key}&token={token}')
+                        if getAllIdsRequest.status_code == 200:
+                            data = getAllIdsRequest.json()
+                            for i in data:
+                                issueId = i.get("id")
+                                if issueId not in trelloIds:
+                                    url = f"https://api.trello.com/1/cards/{issueId}"
+                                    query = {
+                                        'key': trello_key,
+                                        'token': token
+                                    }
+                                    
+                                    response = requests.delete(url, params=query)
+                        
+                    except Exception as ex:
+                        print(ex)
+
+            return JsonResponse({"status":"Success","message": "issues added"}, status=200)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
