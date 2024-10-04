@@ -1271,13 +1271,13 @@ def jira_call_create_ticket():
                     }
 
 
-                    try:
-                        response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
-                        if response.status_code == 201:
+                    # try:
+                    response = requests.post(jira_url, data=json.dumps(combined_data), headers=headers, auth=HTTPBasicAuth(username, password))
+                    if response.status_code == 201:
+                        try: 
 
                             ticket_data = response.json()
                             checkVulIdExists = TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id))).exists()
-                            time.sleep(3)
                             if not checkVulIdExists:
                                 TicketingServiceDetails.objects.create(
                                         exploitsList = exploitIdList ,
@@ -1294,17 +1294,59 @@ def jira_call_create_ticket():
                                 if delete_response.status_code == 204:
                                     print(f"duplicate issue {issue_key} got deleted")
 
-                    except requests.exceptions.HTTPError as http_err:
-                        print(f"HTTP error occurred: {http_err}")
-                    except requests.exceptions.ConnectionError as conn_err:
-                        print(f"Connection error occurred: {conn_err}")
-                    except requests.exceptions.Timeout as timeout_err:
-                        print(f"Timeout error occurred: {timeout_err}")
-                    except requests.exceptions.RequestException as req_err:
-                        print(f"An error occurred: {req_err}")
-                    else:
-                        print(f"Success! Response status code: {response.status_code}")
-                        print(f"Response content: {response.content}")
+                        except requests.exceptions.HTTPError as http_err:
+                            print(f"HTTP error occurred: {http_err}")
+                        except requests.exceptions.ConnectionError as conn_err:
+                            print(f"Connection error occurred: {conn_err}")
+                        except requests.exceptions.Timeout as timeout_err:
+                            print(f"Timeout error occurred: {timeout_err}")
+                        except requests.exceptions.RequestException as req_err:
+                            print(f"An error occurred: {req_err}")
+                        else:
+                            print(f"Success! Response status code: {response.status_code}")
+                            print(f"Response content: {response.content}")
+
+                cursor.execute("SELECT * FROM organizations;")
+                orgs = cursor.fetchall()
+                orgIds = []
+                for i in orgs:
+                    orgId = i.get("id")
+                    orgIds.append(orgId)
+
+                for orgId in orgIds:
+
+                    checkOrgIdExists =(TicketingServiceDetails.objects.filter(organizationId = orgId, ticketServicePlatform='JIRA',isActive=True)).exists()
+                    if checkOrgIdExists:
+                        allJiraTickets = TicketingServiceDetails.objects.filter(organizationId = orgId,ticketServicePlatform='JIRA')
+                        cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'jira'", (organization_id,))
+                        ticketing_tool = cursor.fetchone()
+
+                        jira_url = (json.loads(ticketing_tool.get("values"))).get('url')
+                        jira_key =(json.loads(ticketing_tool.get("values"))).get('password')
+                        boardName = (json.loads(ticketing_tool.get("values"))).get('board')
+                        auth = ((json.loads(ticketing_tool.get("values"))).get('username'), (json.loads(ticketing_tool.get("values"))).get('password'),)
+                        
+
+                        jiraIds = []
+                        for ticket in allJiraTickets:
+                            jiraId = boardName+"-"+ str(ticket.ticketId)
+                            jiraIds.append(jiraId)
+
+                        try:
+                            getAllIdsRequest = requests.get(jira_url+"/rest/api/3/search", auth=auth)
+                            if response.status_code != 200:
+                                data = getAllIdsRequest.json()
+                                for i in data["issues"]:
+                                    issueId = i.get("key")
+                                    if issueId not in jiraIds:
+                                        delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issueId}', auth=auth)
+                            
+                        except Exception as ex:
+                            print(ex)
+
+
+
+                        
 
                 return JsonResponse({
                     "status":"Success",
@@ -1926,7 +1968,7 @@ def jira_call_create_ticket():
 
                                 ticket_data = response.json()
                                 checkVulIdExists =TicketingServiceDetails.objects.filter(cVulId=([key for key, value in TICKET_REFERENCE_CHOICES if value == 'JIRA'][0] + "-" +str(vul_id))).exists()
-                                time.sleep(3)
+                                # time.sleep(3)
                                 if not checkVulIdExists:
                                     TicketingServiceDetails.objects.create(
                                             exploitsList = exploitIdList ,
@@ -3958,7 +4000,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=5, minute=45, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=5, minute=57, second=0, microsecond=0)
 
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
 

@@ -176,7 +176,7 @@ def createTicketManuallyJira(request):
 
 
 @csrf_exempt
-@api_view(['GET'])
+@api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def createTicketManuallyForFreshservice(request):
     from .scheduler import freshservice_call_create_ticket
