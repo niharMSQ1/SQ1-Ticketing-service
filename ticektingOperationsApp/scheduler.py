@@ -2007,15 +2007,7 @@ def jira_call_create_ticket():
             return JsonResponse({
             "status":"Success",
             "message":"New issues created successfully"
-        }, status=200)
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-    finally:
-        if connection.is_connected():
-            connection.close()
-    
+        }, status=200)    
 
 def updateExploitsAndPatchesForJira():
     try:
