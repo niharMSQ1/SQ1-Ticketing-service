@@ -2003,9 +2003,9 @@ def jira_call_create_ticket():
 
                         all_issue_keys = getAllIssues()
                         totalIssues = len(all_issue_keys)
-                        print("total issues in SQ1: " + len(jiraIds))
-                        print("total issues in JIRA: " + totalIssues)
-                        print("remaining issues to be deleted: "+totalIssues - len(jiraIds))
+                        # print("total issues in SQ1: " + len(jiraIds))
+                        # print("total issues in JIRA: " + totalIssues)
+                        # print("remaining issues to be deleted: "+totalIssues - len(jiraIds))
                         while totalIssues >= len(jiraIds):
                             if totalIssues == len(jiraIds):
                                 break
@@ -2013,7 +2013,7 @@ def jira_call_create_ticket():
                                 if i not in jiraIds:
                                     delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{i}', auth=auth)
                                     totalIssues = totalIssues-1
-                                    print("remaining issues to be deleted: "+totalIssues-len(jiraIds))
+                                    # print("remaining issues to be deleted: "+totalIssues-len(jiraIds))
                 
                     except Exception as ex:
                         print(ex)
@@ -4065,7 +4065,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=11, minute=15, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=11, minute=24, second=0, microsecond=0)
 
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
 
