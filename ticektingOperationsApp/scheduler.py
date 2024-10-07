@@ -1977,30 +1977,44 @@ def jira_call_create_ticket():
                         jiraIds.append(jiraId)
 
                     try:
-                        startAt = 0
-                        maxResults = 50
-                        total_issues = 1
-                        while startAt < total_issues:
+                        def getAllIssues(startAt=0, maxResults=50, allIssuesObtained=None):
+                            if allIssuesObtained is None:
+                                allIssuesObtained = []
+
                             getAllIdsRequest = requests.get(
                                 f"{jira_url}/rest/api/3/search?startAt={startAt}&maxResults={maxResults}",
                                 auth=auth
                             )
+                            
                             if getAllIdsRequest.status_code == 200:
                                 data = getAllIdsRequest.json()
-                                total_issues = data['total']
-                                for i in data["issues"]:
-                                    issueId = i.get("key")
-                                    if issueId not in jiraIds:
-                                        delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issueId}', auth=auth)
-                                        if delete_response.status_code == 204:
-                                            print(f"Issue {issueId} deleted successfully")
-                                        else:
-                                            print(f"Failed to delete issue {issueId}. Status code: {delete_response.status_code}")
-                                startAt += maxResults
+                                total_issues = data['total'] 
+                                for issue in data["issues"]:
+                                    key = issue.get("key")
+                                    allIssuesObtained.append(key)
+
+                                if startAt + maxResults < total_issues:
+                                    return getAllIssues(startAt=startAt + maxResults, maxResults=maxResults, allIssuesObtained=allIssuesObtained)
+
+                                return allIssuesObtained
                             else:
                                 print(f"Failed to fetch issues. Status code: {getAllIdsRequest.status_code}")
+                                return None
+
+                        all_issue_keys = getAllIssues()
+                        totalIssues = len(all_issue_keys)
+                        print("total issues in SQ1: " + len(jiraIds))
+                        print("total issues in JIRA: " + totalIssues)
+                        print("remaining issues to be deleted: "+totalIssues - len(jiraIds))
+                        while totalIssues >= len(jiraIds):
+                            if totalIssues == len(jiraIds):
                                 break
-                        
+                            for i in all_issue_keys:
+                                if i not in jiraIds:
+                                    delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{i}', auth=auth)
+                                    totalIssues = totalIssues-1
+                                    print("remaining issues to be deleted: "+totalIssues-len(jiraIds))
+                
                     except Exception as ex:
                         print(ex)
 
@@ -2008,6 +2022,13 @@ def jira_call_create_ticket():
             "status":"Success",
             "message":"New issues created successfully"
         }, status=200)    
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    finally:
+        if connection.is_connected():
+            connection.close()
 
 def updateExploitsAndPatchesForJira():
     try:
@@ -4046,17 +4067,17 @@ def start_scheduler():
 
     start_time = datetime.now(pytz.UTC).replace(hour=7, minute=0, second=0, microsecond=0)
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 6) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 6) % 60, day_of_week='*', start_date=start_time))
 
 
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 12) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 12) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
 
-    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 18) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 21) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 24) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 18) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 21) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 24) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.start()
