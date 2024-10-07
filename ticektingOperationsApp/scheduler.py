@@ -1977,13 +1977,29 @@ def jira_call_create_ticket():
                         jiraIds.append(jiraId)
 
                     try:
-                        getAllIdsRequest = requests.get(jira_url+"/rest/api/3/search", auth=auth)
-                        if getAllIdsRequest.status_code == 200:
-                            data = getAllIdsRequest.json()
-                            for i in data["issues"]:
-                                issueId = i.get("key")
-                                if issueId not in jiraIds:
-                                    delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issueId}', auth=auth)
+                        startAt = 0
+                        maxResults = 50
+                        total_issues = 1
+                        while startAt < total_issues:
+                            getAllIdsRequest = requests.get(
+                                f"{jira_url}/rest/api/3/search?startAt={startAt}&maxResults={maxResults}",
+                                auth=auth
+                            )
+                            if getAllIdsRequest.status_code == 200:
+                                data = getAllIdsRequest.json()
+                                total_issues = data['total']
+                                for i in data["issues"]:
+                                    issueId = i.get("key")
+                                    if issueId not in jiraIds:
+                                        delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issueId}', auth=auth)
+                                        if delete_response.status_code == 204:
+                                            print(f"Issue {issueId} deleted successfully")
+                                        else:
+                                            print(f"Failed to delete issue {issueId}. Status code: {delete_response.status_code}")
+                                startAt += maxResults
+                            else:
+                                print(f"Failed to fetch issues. Status code: {getAllIdsRequest.status_code}")
+                                break
                         
                     except Exception as ex:
                         print(ex)
