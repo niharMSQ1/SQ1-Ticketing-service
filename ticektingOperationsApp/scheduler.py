@@ -1305,53 +1305,6 @@ def jira_call_create_ticket():
                         else:
                             print(f"Success! Response status code: {response.status_code}")
                             print(f"Response content: {response.content}")
-
-                # cursor.execute("SELECT * FROM organizations;")
-                # orgs = cursor.fetchall()
-                # orgIds = []
-                # for i in orgs:
-                #     orgId = i.get("id")
-                #     orgIds.append(orgId)
-
-                # for orgId in orgIds:
-
-                #     checkOrgIdExists =(TicketingServiceDetails.objects.filter(organizationId = orgId, ticketServicePlatform='JIRA',isActive=True)).exists()
-                #     if checkOrgIdExists:
-                #         allJiraTickets = TicketingServiceDetails.objects.filter(organizationId = orgId,ticketServicePlatform='JIRA')
-                #         cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'jira'", (organization_id,))
-                #         ticketing_tool = cursor.fetchone()
-
-                #         jira_url = (json.loads(ticketing_tool.get("values"))).get('url')
-                #         jira_key =(json.loads(ticketing_tool.get("values"))).get('password')
-                #         boardName = (json.loads(ticketing_tool.get("values"))).get('board')
-                #         auth = ((json.loads(ticketing_tool.get("values"))).get('username'), (json.loads(ticketing_tool.get("values"))).get('password'),)
-                        
-
-                #         jiraIds = []
-                #         for ticket in allJiraTickets:
-                #             jiraId = boardName+"-"+ str(ticket.ticketId)
-                #             jiraIds.append(jiraId)
-
-                #         try:
-                #             getAllIdsRequest = requests.get(jira_url+"/rest/api/3/search", auth=auth)
-                #             if response.status_code != 200:
-                #                 data = getAllIdsRequest.json()
-                #                 for i in data["issues"]:
-                #                     issueId = i.get("key")
-                #                     if issueId not in jiraIds:
-                #                         delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issueId}', auth=auth)
-                            
-                #         except Exception as ex:
-                #             print(ex)
-
-
-
-                        
-
-                # return JsonResponse({
-                #     "status":"Success",
-                #     "message":"Issues created successfully"
-                # }, status=200)
             
             else:
                 latest_existing_id = int((existing_vul_ids.last().cVulId).split('-')[1])
@@ -2009,7 +1962,7 @@ def jira_call_create_ticket():
                 checkOrgIdExists =(TicketingServiceDetails.objects.filter(organizationId = orgId, ticketServicePlatform='JIRA',isActive=True)).exists()
                 if checkOrgIdExists:
                     allJiraTickets = TicketingServiceDetails.objects.filter(organizationId = orgId,ticketServicePlatform='JIRA')
-                    cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'jira'", (organization_id,))
+                    cursor.execute("SELECT * FROM ticketing_tool WHERE organization_id = %s AND type = 'jira'", (orgId,))
                     ticketing_tool = cursor.fetchone()
 
                     jira_url = (json.loads(ticketing_tool.get("values"))).get('url')
@@ -2025,7 +1978,7 @@ def jira_call_create_ticket():
 
                     try:
                         getAllIdsRequest = requests.get(jira_url+"/rest/api/3/search", auth=auth)
-                        if response.status_code != 200:
+                        if getAllIdsRequest.status_code == 200:
                             data = getAllIdsRequest.json()
                             for i in data["issues"]:
                                 issueId = i.get("key")
