@@ -2234,9 +2234,11 @@ def updateExploitsAndPatchesForJira():
                                     allPatches = [
                                         {
                                             **patch,
-                                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
-                                        } for patch in patches
+                                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])] if patch['os'] else [])
+                                        }
+                                        for patch in patches
                                     ]
+
 
 
                                     def convert_none_for_patches(data):
@@ -3023,9 +3025,11 @@ def createCardInTrello():
                     allPatches = [
                         {
                             **patch,
-                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])])
-                        } for patch in patches
+                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])] if patch['os'] else [])
+                        }
+                        for patch in patches
                     ]
+
 
 
                     def convert_none_for_patches(data):
@@ -4061,7 +4065,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=4, minute=45, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=5, minute=30, second=0, microsecond=0)
 
     scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
