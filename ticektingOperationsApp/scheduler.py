@@ -1,4 +1,5 @@
 import ast
+import base64
 import json
 import requests
 import logging
@@ -133,7 +134,7 @@ def freshservice_call_create_ticket():
                             continue
 
                         freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
-                        freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key") 
+                        freshservice_key =base64.b64encode (bytes((json.loads((ticketing_tool.get("values")))).get("key"), "utf-8")).decode("utf-8", "ignore") 
 
                         requestedForEmail = (json.loads(ticketing_tool.get('values'))).get('email')
 
@@ -326,7 +327,7 @@ def freshservice_call_create_ticket():
                                 continue
 
                             freshservice_url = (json.loads((ticketing_tool.get("values")))).get("url") + "/api/v2/tickets"
-                            freshservice_key =(json.loads((ticketing_tool.get("values")))).get("key")
+                            freshservice_key =base64.b64encode(bytes((json.loads((ticketing_tool.get("values")))).get("key"), "utf-8")).decode("utf-8", "ignore")
 
                             requestedForEmail = (json.loads(ticketing_tool.get('values'))).get('email')
 
@@ -383,7 +384,7 @@ def freshservice_call_create_ticket():
 
                             descriptionText = f"<strong>Vulnerability synopsis:</strong> {result['description']}" if result['description'] is not None else "<strong>Vulnerability synopsis:</strong> NA"
                             combined_data = {
-                                "description":mapped_priority+ descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
+                                "description":mapped_priority_html+ descriptionText + detection_summary_table+remediation_table+ exploits_table_html + patch_table_html+workstation_table+servers_table,
                                 "subject": result.get("name"),
                                 "email": requestedForEmail,
                                 "priority": mapped_priority,
@@ -446,7 +447,7 @@ def updateExploitsAndPatchesForFreshservice():
                 try:
                     values = json.loads(tool.get("values"))
                     url = values.get("url")
-                    key = values.get("key")
+                    key = base64.b64encode(bytes(values.get("key"), "utf-8")).decode("utf-8", "ignore")
                     requestedForEmail = json.loads(tool['values']).get("email")
                     
                     headers = {
@@ -2658,7 +2659,7 @@ def changeVulnerabilityStatusForFreshService():
 
             for tool in ticketing_tools:
                 url = (json.loads(tool.get("values"))).get("url")
-                key = (json.loads(tool.get("values"))).get("key")
+                key =base64.b64encode(bytes((json.loads(tool.get("values"))).get("key"), "utf-8")).decode("utf-8", "ignore")
 
                 headers = {
                     "Content-Type": "application/json",
@@ -4067,17 +4068,17 @@ def start_scheduler():
 
     start_time = datetime.now(pytz.UTC).replace(hour=9, minute=30, second=0, microsecond=0)
 
-    scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
-    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
 
 
-    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 20) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 23) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 26) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 20) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 23) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 26) % 60, day_of_week='*', start_date=start_time))
 
-    scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 29) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 33) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 35) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 29) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 33) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 35) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.start()

@@ -13,6 +13,7 @@ from .models import *
 import json
 import requests
 import ast
+import base64
 
 # Create your views here.
 @csrf_exempt
@@ -159,7 +160,7 @@ def delete_all_tickets_freshservice(request):
     for account in accounts:
         account_values = json.loads(account['values']) 
         domain = account_values.get("url").replace("https://", "")
-        api_key = account_values.get("key")
+        api_key =base64.b64encode(bytes(account_values.get("key"), "utf-8")).decode("utf-8", "ignore")
         result, status_code = delete_tickets_for_account(domain, api_key)
         results.append({"domain": domain, "result": result, "status_code": status_code})
 
