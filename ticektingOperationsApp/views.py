@@ -17,8 +17,8 @@ import base64
 
 # Create your views here.
 @csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
 def register(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not supported. Only POST requests are allowed.'}, status=405)
@@ -99,8 +99,8 @@ def test(request):
 
 
 @csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
 def delete_all_tickets_freshservice(request):
     def delete_tickets_for_account(domain, api_key):
         headers = {
@@ -168,8 +168,8 @@ def delete_all_tickets_freshservice(request):
 
 
 @csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
 def createTicketManuallyJira(request):
     from .scheduler import jira_call_create_ticket
     req = jira_call_create_ticket()
@@ -177,24 +177,24 @@ def createTicketManuallyJira(request):
 
 
 @csrf_exempt
-@api_view(['GET', 'DELETE'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET', 'DELETE'])
+# @permission_classes([IsAuthenticated])
 def createTicketManuallyForFreshservice(request):
     from .scheduler import freshservice_call_create_ticket
     req = freshservice_call_create_ticket()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
 def updateTicketManuallyForFreshService(request):
     from .scheduler import updateExploitsAndPatchesForFreshservice
     req = updateExploitsAndPatchesForFreshservice()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
+# @api_view(['DELETE'])
+# @permission_classes([IsAuthenticated])
 def delete_jira_issues(request):
     def delete_issues_for_account(jira_url, auth):
         try:
@@ -259,16 +259,16 @@ def delete_jira_issues(request):
 
 
 @csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
 def updateJiraPatchesAndExploits(request):
     from .scheduler import updateExploitsAndPatchesForJira
     req = updateExploitsAndPatchesForJira()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-@api_view(['GET', 'DELETE'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET', 'DELETE'])
+# @permission_classes([IsAuthenticated])
 def cardCreateTrello(request):
     from .scheduler import createCardInTrello
     req =createCardInTrello()
@@ -277,8 +277,8 @@ def cardCreateTrello(request):
     )
 
 @csrf_exempt
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
 def updatatePatchesAndExploitsForTrello(request):
     from .scheduler import updateExploitsAndPatchesForTrello
     req =updateExploitsAndPatchesForTrello()
