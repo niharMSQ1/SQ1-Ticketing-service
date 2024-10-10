@@ -4066,16 +4066,16 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=37, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=9, minute=39, second=0, microsecond=0)
 
    # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 2) % 60, day_of_week='*', start_date=start_time))
     # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
 
 
-   # scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 7) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
+   scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
+    # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 7) % 60, day_of_week='*', start_date=start_time))
     scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
