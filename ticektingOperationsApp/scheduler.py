@@ -4072,8 +4072,7 @@ def start_scheduler():
    # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 2) % 60, day_of_week='*', start_date=start_time))
     # scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
 
-
-   scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
+    scheduler.add_job(updateExploitsAndPatchesForFreshservice, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
     # scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute) % 60, day_of_week='*', start_date=start_time))
     # scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 5) % 60, day_of_week='*', start_date=start_time))
 
