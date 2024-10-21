@@ -4078,7 +4078,7 @@ def start_scheduler():
     scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 25) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.add_job(changeVulnerabilityStatusForFreshService, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 30) % 60, day_of_week='*', start_date=start_time))
-    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 35) % 17, day_of_week='*', start_date=start_time))
+    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 35) % 60, day_of_week='*', start_date=start_time))
     scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 40) % 60, day_of_week='*', start_date=start_time))
 
     scheduler.start()
