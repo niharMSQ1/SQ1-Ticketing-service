@@ -4088,7 +4088,7 @@ def changeVulnerabilityStatusForTrello():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone=pytz.UTC)
 
-    start_time = datetime.now(pytz.UTC).replace(hour=7, minute=15, second=0, microsecond=0)
+    start_time = datetime.now(pytz.UTC).replace(hour=7, minute=7, second=0, microsecond=0)
 
     scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
 
