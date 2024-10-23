@@ -2069,7 +2069,6 @@ def updateExploitsAndPatchesForJira():
                             if checkIssueIdInTicketingService:
                                 ticketObj = TicketingServiceDetails.objects.get(ticketId=issueId)
                                 vulnerabilityId = ticketObj.sq1VulId
-                                print(vulnerabilityId)
                                 organizationId = ticketObj.organizationId
 
                                 exploitsList = ast.literal_eval(ticketObj.exploitsList)
@@ -2088,6 +2087,7 @@ def updateExploitsAndPatchesForJira():
                                     continue
 
                                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
+                                    print(vulnerabilityId , "This is the vulnerability ID which has new patches or exploits- Line 2090")
                                     vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
                                     vulnerability_description =None
@@ -2232,6 +2232,7 @@ def updateExploitsAndPatchesForJira():
                                     allExploits = convert_none_for_exploits(allExploits)
                                     allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
 
+                                    print(allExploits, "Th existing with new exploits")
                                     allPatches = [
                                         {
                                             **patch,
@@ -2249,6 +2250,8 @@ def updateExploitsAndPatchesForJira():
                                                     patch[key]="NA"
                                         return data
                                     allPatches = convert_none_for_patches(allPatches)
+                                    print(allPatches, "The existing with new patches, this we are checking just before preparing the data to be rendered on UI")
+
                                     combined_data = {
                                         "fields": {
                                             "project": {
