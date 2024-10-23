@@ -2103,7 +2103,8 @@ def updateExploitsAndPatchesForJira():
 
                                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
                                     existingExploits = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId)).exploitsList
-                                    if eval(existingExploits) != eod:
+                                    existingPatches = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId)).patchesList
+                                    if eval(existingExploits) != eod or eval(existingPatches)!=pod:
                                         # print(vulnerabilityId , "This is the vulnerability ID which has new patches or exploits- Line 2090")
                                         vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
