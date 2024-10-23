@@ -2069,7 +2069,6 @@ def updateExploitsAndPatchesForJira():
                             if checkIssueIdInTicketingService:
                                 ticketObj = TicketingServiceDetails.objects.get(ticketId=issueId)
                                 vulnerabilityId = ticketObj.sq1VulId
-                                # print(vulnerabilityId)
                                 organizationId = ticketObj.organizationId
 
                                 exploitsList = ast.literal_eval(ticketObj.exploitsList)
@@ -2087,569 +2086,550 @@ def updateExploitsAndPatchesForJira():
                                 if not vulnerabilityResult:
                                     continue
 
-                                eod = []
-                                for exploit in exploits:
-                                    eod.append(exploit.get("id"))
-                                # exploitsDiff = list(set(eod)-set(exploitsList))
-
-                                pod = []
-                                for patch in patches:
-                                    pod.append(patch.get("id"))
-                                # exploitsDiff = list(set(pod)-set(exploitsList))
-
-                                
-
-
-
                                 if len(patches) > len(patchesList) or len(exploits) > len(exploitsList):
-                                    existingExploits = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId)).exploitsList
-                                    existingPatches = (TicketingServiceDetails.objects.get(sq1VulId = vulnerabilityId)).patchesList
-                                    if eval(existingExploits) != eod or eval(existingPatches)!=pod:
-                                        # print(vulnerabilityId , "This is the vulnerability ID which has new patches or exploits- Line 2090")
-                                        vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
+                                    vulnerability_name = vulnerabilityResult[0]['name'] if vulnerabilityResult[0]['name'] is not None else "Description not added"
 
-                                        vulnerability_description =None
-                                        if vulnerabilityResult[0]['description'] is not None:
-                                            vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', vulnerabilityResult[0]['description'])).strip()
-                                        else:
-                                            vulnerability_description = "Vulnerability synopsis: Description not aded"     
-                                        mapped_priority = None 
-
-                                        risk = float(vulnerabilityResult[0].get("risk"))
-
-                                        if 9.0 <= risk <= 10.0:
-                                            mapped_priority = "Highest"
-                                        elif 7.0 <= risk <= 8.9:
-                                            mapped_priority = "High"
-                                        elif 4.0 <= risk <= 6.9:
-                                            mapped_priority = "Medium"
-                                        elif 0.1 <= risk <= 3.9:
-                                            mapped_priority = "Low"
-
-                                        # Detection Summary
-                                        cves = json.loads(vulnerabilityResult[0]["CVEs"])
-                                        cves_string = ", ".join(cves["cves"])
-                                        detectionSummaryObj = {
-                                            "CVE": cves_string,
-                                            "Severity": vulnerabilityResult[0]["severity"],
-                                            "first_identified_on": vulnerabilityResult[0]["first_seen"],
-                                            "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
-                                            "patch_priority":vulnerabilityResult[0]["patch_priority"]
-                                            }
-                                        listOfDetection = [detectionSummaryObj]
-
-                                        def convert_datetime_to_string(data):
-                                            for item in data:
-                                                for key, value in item.items():
-                                                    if isinstance(value, datetime):
-                                                        item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
-                                            return data
-                                        
-                                        listOfDetection = convert_datetime_to_string(listOfDetection)
-
-                                        for detection in listOfDetection:
-                                            for key, value in detection.items():
-                                                if value is None:
-                                                    detection[key] = "NA"
-
-                                        # Remediation Summary
-                                        remediationObj = {
-                                                "solution_patch": vulnerabilityResult[0]["solution_patch"],
-                                                "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
-                                                "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
-                                                }
-                                        listOfRemediation = [remediationObj]
-
-                                        def convert_none(data):
-                                            for remediation in listOfRemediation:
-                                                for key, value in remediation.items():
-                                                    if value is None:
-                                                        remediation[key]="NA"
-                                            return data
-
-                                        listOfRemediation = convert_none(listOfRemediation)
-                                        
-
-                                        # workstations and servers
-                                        cursor.execute("""
-                                        SELECT assetable_type, assetable_id
-                                        FROM assetables
-                                        WHERE vulnerabilities_id = %s
-                                        """, (vulnerabilityId,))
-                                        assetables_results = cursor.fetchall()
-
-                                        assets = {
-                                            "servers": [],
-                                            "workstations": []
-                                        }
-                                        ass_type = []
-                                        for i in assetables_results:
-                                            ass_type.append(i['assetable_type'])
-
-                                        ass_id = []
-                                        for i in assetables_results:
-                                            ass_id.append(i['assetable_id'])
-
-                                        index = 0
-                                        for i in ass_type:
-                                            j = ass_id[index]
-                                            if i == 'App\\Models\\Workstations':
-                                                cursor.execute("""
-                                                SELECT host_name, ip_address
-                                                FROM workstations
-                                                WHERE id = %s AND organization_id = %s
-                                                """, (j, organizationId))
-                                                workstation = cursor.fetchone()
-                                                if workstation:
-                                                    assets["workstations"].append(workstation)
-                                                index = index+1
-                                            
-
-                                            if i == 'App\\Models\\Servers':
-                                                cursor.execute("""
-                                                SELECT host_name, ip_address
-                                                FROM workstations
-                                                WHERE id = %s AND organization_id = %s
-                                                """, (j, organizationId))
-                                                server = cursor.fetchone()
-                                                if server:
-                                                    assets["servers"].append(server)
-                                                index = index+1
-                                        
-                                        workstations = assets['workstations']
-
-                                        def convert_none_workstations(data):
-                                            for workstation in workstations:
-                                                for key, value in workstation.items():
-                                                    if value is None:
-                                                        workstation[key]="NA"
-                                            return data
-
-                                        workstations = convert_none_workstations(workstations)
-
-                                        servers = assets['servers']
-
-                                        def convert_none_servers(data):
-                                            for server in servers:
-                                                for key, value in server.items():
-                                                    if value is None:
-                                                        server[key]="NA"
-                                            return data
-
-                                        servers = convert_none_servers(servers)
-
-                                        # exploits and patches
-
-                                        allExploits = exploits
-                                        def convert_none_for_exploits(data):
-                                            for exploit in allExploits:
-                                                for key, value in exploit.items():
-                                                    if value is None:
-                                                        exploit[key]="NA"
-                                            return data
-                                        allExploits = convert_none_for_exploits(allExploits)
-                                        allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
-
-                                        # print(allExploits, "Th existing with new exploits")
-                                        allPatches = [
-                                            {
-                                                **patch,
-                                                'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])] if patch['os'] else [])
-                                            }
-                                            for patch in patches
-                                        ]
-
-
-
-                                        def convert_none_for_patches(data):
-                                            for patch in allPatches:
-                                                for key, value in patch.items():
-                                                    if value is None:
-                                                        patch[key]="NA"
-                                            return data
-                                        allPatches = convert_none_for_patches(allPatches)
-                                        # print(allPatches, "The existing with new patches, this we are checking just before preparing the data to be rendered on UI")
-
-                                        combined_data = {
-                                            "fields": {
-                                                "project": {
-                                                    "key":boardName
-                                                },
-                                                "summary": vulnerability_name,
-                                                "description": {
-                                                    "version": 1,
-                                                    "type": "doc",
-                                                    "content": [
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": vulnerability_description
-                                                                }
-                                                            ]
-                                                        },
-                                                        # Detection Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Detection Summary:"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for det in listOfDetection
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if listOfDetection else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No detection data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        ),
-                                                        # Remediation Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Remediation:"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Patch"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Workaround"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Preventive Measure"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for rem in listOfRemediation
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if listOfRemediation else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No remediation data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        ),
-                                                        # Exploits Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Exploits Table:"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dependency"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["name"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["description"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["complexity"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["dependency"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for exp in allExploits
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if allExploits else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No exploit data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        ),
-                                                        # Patch Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Patch(es):"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Solution"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "URL"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Type"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "OS"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["solution"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["description"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["complexity"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["url"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["type"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["os"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for patch in allPatches
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if allPatches else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No patch data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        ),
-                                                        # Workstations Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Workstations:"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation Name"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation IP"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for ws in workstations
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if workstations else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No workstation data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        ),
-                                                        # Servers Summary section
-                                                        {
-                                                            "type": "paragraph",
-                                                            "content": [
-                                                                {
-                                                                    "type": "text",
-                                                                    "text": "Servers:"
-                                                                }
-                                                            ]
-                                                        },
-                                                        *(
-                                                            [
-                                                                {
-                                                                    "type": "table",
-                                                                    "attrs": {
-                                                                        "isNumberColumnEnabled": False,
-                                                                        "layout": "default"
-                                                                    },
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "tableRow",
-                                                                            "content": [
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server Name"}]}]},
-                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server IP"}]}]}
-                                                                            ]
-                                                                        },
-                                                                        *[
-                                                                            {
-                                                                                "type": "tableRow",
-                                                                                "content": [
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["host_name"]}]}]},
-                                                                                    {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["ip_address"]}]}]}
-                                                                                ]
-                                                                            }
-                                                                            for svr in servers
-                                                                        ]
-                                                                    ]
-                                                                }
-                                                            ] if servers else [
-                                                                {
-                                                                    "type": "paragraph",
-                                                                    "content": [
-                                                                        {
-                                                                            "type": "text",
-                                                                            "text": "No server data available."
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        )
-                                                    ]
-                                                },
-                                                "issuetype": {
-                                                    "name": "Task"
-                                                },
-                                                "priority": {
-                                                    "name": mapped_priority
-                                                },
-                                                "assignee": {
-                                                    "name": "assignee_username"
-                                                },
-                                                "labels": [
-                                                    "vulnerability",
-                                                    "security"
-                                                ]
-                                            }
-                                        }
-
-
-                                        patchUrl = (json.loads(tool.get("values"))).get("url") + f"/rest/api/3/issue/{issue_key}"
-                                        response = requests.put(patchUrl,
-                                                                data=json.dumps(combined_data),
-                                                                headers=headers,
-                                                                auth=HTTPBasicAuth(username, password))
-
-                                        if response.status_code == 204:
-                                            newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
-                                            if newPatchIds:
-                                                ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
-                                                existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
-                                                newPatchesList = existingPatchIds + newPatchIds
-                                                ticket_service_details.patchesList = str(newPatchesList)
-                                                ticket_service_details.save()
-
-                                            newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
-                                            if newExploitIds:
-                                                ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
-                                                existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
-                                                newExploitsList = existingExploitIds + newExploitIds
-                                                ticket_service_details.exploitsList = str(newExploitsList)
-                                                ticket_service_details.save()
+                                    vulnerability_description =None
+                                    if vulnerabilityResult[0]['description'] is not None:
+                                        vulnerability_description = re.sub(r'\s+', ' ', re.sub(r'<.*?>', '', vulnerabilityResult[0]['description'])).strip()
                                     else:
-                                        continue
+                                        vulnerability_description = "Vulnerability synopsis: Description not aded"     
+                                    mapped_priority = None 
+
+                                    risk = float(vulnerabilityResult[0].get("risk"))
+
+                                    if 9.0 <= risk <= 10.0:
+                                        mapped_priority = "Highest"
+                                    elif 7.0 <= risk <= 8.9:
+                                        mapped_priority = "High"
+                                    elif 4.0 <= risk <= 6.9:
+                                        mapped_priority = "Medium"
+                                    elif 0.1 <= risk <= 3.9:
+                                        mapped_priority = "Low"
+
+                                    # Detection Summary
+                                    cves = json.loads(vulnerabilityResult[0]["CVEs"])
+                                    cves_string = ", ".join(cves["cves"])
+                                    detectionSummaryObj = {
+                                        "CVE": cves_string,
+                                        "Severity": vulnerabilityResult[0]["severity"],
+                                        "first_identified_on": vulnerabilityResult[0]["first_seen"],
+                                        "last_identifies_on":vulnerabilityResult[0]["last_identified_on"],
+                                        "patch_priority":vulnerabilityResult[0]["patch_priority"]
+                                        }
+                                    listOfDetection = [detectionSummaryObj]
+
+                                    def convert_datetime_to_string(data):
+                                        for item in data:
+                                            for key, value in item.items():
+                                                if isinstance(value, datetime):
+                                                    item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                                        return data
+                                    
+                                    listOfDetection = convert_datetime_to_string(listOfDetection)
+
+                                    for detection in listOfDetection:
+                                        for key, value in detection.items():
+                                            if value is None:
+                                                detection[key] = "NA"
+
+                                    # Remediation Summary
+                                    remediationObj = {
+                                            "solution_patch": vulnerabilityResult[0]["solution_patch"],
+                                            "solution_workaround": vulnerabilityResult[0]["solution_workaround"],
+                                            "preventive_measure": vulnerabilityResult[0]["preventive_measure"],
+                                            }
+                                    listOfRemediation = [remediationObj]
+
+                                    def convert_none(data):
+                                        for remediation in listOfRemediation:
+                                            for key, value in remediation.items():
+                                                if value is None:
+                                                    remediation[key]="NA"
+                                        return data
+
+                                    listOfRemediation = convert_none(listOfRemediation)
+                                    
+
+                                    # workstations and servers
+                                    cursor.execute("""
+                                    SELECT assetable_type, assetable_id
+                                    FROM assetables
+                                    WHERE vulnerabilities_id = %s
+                                    """, (vulnerabilityId,))
+                                    assetables_results = cursor.fetchall()
+
+                                    assets = {
+                                        "servers": [],
+                                        "workstations": []
+                                    }
+                                    ass_type = []
+                                    for i in assetables_results:
+                                        ass_type.append(i['assetable_type'])
+
+                                    ass_id = []
+                                    for i in assetables_results:
+                                        ass_id.append(i['assetable_id'])
+
+                                    index = 0
+                                    for i in ass_type:
+                                        j = ass_id[index]
+                                        if i == 'App\\Models\\Workstations':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            workstation = cursor.fetchone()
+                                            if workstation:
+                                                assets["workstations"].append(workstation)
+                                            index = index+1
+                                        
+
+                                        if i == 'App\\Models\\Servers':
+                                            cursor.execute("""
+                                            SELECT host_name, ip_address
+                                            FROM workstations
+                                            WHERE id = %s AND organization_id = %s
+                                            """, (j, organizationId))
+                                            server = cursor.fetchone()
+                                            if server:
+                                                assets["servers"].append(server)
+                                            index = index+1
+                                    
+                                    workstations = assets['workstations']
+
+                                    def convert_none_workstations(data):
+                                        for workstation in workstations:
+                                            for key, value in workstation.items():
+                                                if value is None:
+                                                    workstation[key]="NA"
+                                        return data
+
+                                    workstations = convert_none_workstations(workstations)
+
+                                    servers = assets['servers']
+
+                                    def convert_none_servers(data):
+                                        for server in servers:
+                                            for key, value in server.items():
+                                                if value is None:
+                                                    server[key]="NA"
+                                        return data
+
+                                    servers = convert_none_servers(servers)
+
+                                    # exploits and patches
+
+                                    allExploits = exploits
+                                    def convert_none_for_exploits(data):
+                                        for exploit in allExploits:
+                                            for key, value in exploit.items():
+                                                if value is None:
+                                                    exploit[key]="NA"
+                                        return data
+                                    allExploits = convert_none_for_exploits(allExploits)
+                                    allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
+
+                                    # print(allExploits, "Th existing with new exploits")
+                                    allPatches = [
+                                        {
+                                            **patch,
+                                            'os': ', '.join([f"{os['os_name']}-{os['os_version']}" for os in json.loads(patch['os'])] if patch['os'] else [])
+                                        }
+                                        for patch in patches
+                                    ]
+
+
+
+                                    def convert_none_for_patches(data):
+                                        for patch in allPatches:
+                                            for key, value in patch.items():
+                                                if value is None:
+                                                    patch[key]="NA"
+                                        return data
+                                    allPatches = convert_none_for_patches(allPatches)
+                                    # print(allPatches, "The existing with new patches, this we are checking just before preparing the data to be rendered on UI")
+
+                                    combined_data = {
+                                        "fields": {
+                                            "project": {
+                                                "key":boardName
+                                            },
+                                            "summary": vulnerability_name,
+                                            "description": {
+                                                "version": 1,
+                                                "type": "doc",
+                                                "content": [
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": vulnerability_description
+                                                            }
+                                                        ]
+                                                    },
+                                                    # Detection Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Detection Summary:"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "CVE"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "First Identified On"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Last Identified On"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Priority"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["CVE"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["first_identified_on"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["last_identifies_on"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": det["patch_priority"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for det in listOfDetection
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if listOfDetection else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No detection data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    ),
+                                                    # Remediation Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Remediation:"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Patch"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Solution Workaround"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Preventive Measure"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_patch"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["solution_workaround"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": rem["preventive_measure"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for rem in listOfRemediation
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if listOfRemediation else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No remediation data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    ),
+                                                    # Exploits Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Exploits Table:"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Exploit Name"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Dependency"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["name"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["description"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["complexity"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": exp["dependency"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for exp in allExploits
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if allExploits else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No exploit data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    ),
+                                                    # Patch Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Patch(es):"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Patch Solution"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Description"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Complexity"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "URL"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Type"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "OS"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["solution"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["description"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["complexity"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["url"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["type"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": patch["os"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for patch in allPatches
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if allPatches else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No patch data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    ),
+                                                    # Workstations Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Workstations:"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation Name"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Workstation IP"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["host_name"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": ws["ip_address"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for ws in workstations
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if workstations else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No workstation data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    ),
+                                                    # Servers Summary section
+                                                    {
+                                                        "type": "paragraph",
+                                                        "content": [
+                                                            {
+                                                                "type": "text",
+                                                                "text": "Servers:"
+                                                            }
+                                                        ]
+                                                    },
+                                                    *(
+                                                        [
+                                                            {
+                                                                "type": "table",
+                                                                "attrs": {
+                                                                    "isNumberColumnEnabled": False,
+                                                                    "layout": "default"
+                                                                },
+                                                                "content": [
+                                                                    {
+                                                                        "type": "tableRow",
+                                                                        "content": [
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server Name"}]}]},
+                                                                            {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Server IP"}]}]}
+                                                                        ]
+                                                                    },
+                                                                    *[
+                                                                        {
+                                                                            "type": "tableRow",
+                                                                            "content": [
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["host_name"]}]}]},
+                                                                                {"type": "tableCell", "content": [{"type": "paragraph", "content": [{"type": "text", "text": svr["ip_address"]}]}]}
+                                                                            ]
+                                                                        }
+                                                                        for svr in servers
+                                                                    ]
+                                                                ]
+                                                            }
+                                                        ] if servers else [
+                                                            {
+                                                                "type": "paragraph",
+                                                                "content": [
+                                                                    {
+                                                                        "type": "text",
+                                                                        "text": "No server data available."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        ]
+                                                    )
+                                                ]
+                                            },
+                                            "issuetype": {
+                                                "name": "Task"
+                                            },
+                                            "priority": {
+                                                "name": mapped_priority
+                                            },
+                                            "assignee": {
+                                                "name": "assignee_username"
+                                            },
+                                            "labels": [
+                                                "vulnerability",
+                                                "security"
+                                            ]
+                                        }
+                                    }
+
+
+                                    patchUrl = (json.loads(tool.get("values"))).get("url") + f"/rest/api/3/issue/{issue_key}"
+                                    response = requests.put(patchUrl,
+                                                            data=json.dumps(combined_data),
+                                                            headers=headers,
+                                                            auth=HTTPBasicAuth(username, password))
+
+                                    if response.status_code == 204:
+                                        newPatchIds = [patch['id'] for patch in patches if patch['id'] not in patchesList]
+                                        if newPatchIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
+                                            existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                            newPatchesList = sorted(list(set(existingPatchIds + newPatchIds)))
+                                            ticket_service_details.patchesList = str(newPatchesList)
+                                            ticket_service_details.save()
+
+                                        newExploitIds = [exploit['id'] for exploit in exploits if exploit['id'] not in exploitsList]
+                                        if newExploitIds:
+                                            ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
+                                            existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                            newExploitsList = sorted(list(set(existingExploitIds + newExploitIds)))
+                                            ticket_service_details.exploitsList = str(newExploitsList)
+                                            ticket_service_details.save()
+
 
                                 else:
                                     continue
