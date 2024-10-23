@@ -2231,7 +2231,6 @@ def updateExploitsAndPatchesForJira():
                                     allExploits = convert_none_for_exploits(allExploits)
                                     allExploits = [{**exploit, 'dependency': 'Dependent on other exploits' if exploit['dependency'] == 'yes' else 'Self exploitable'} for exploit in allExploits]
 
-                                    # print(allExploits, "Th existing with new exploits")
                                     allPatches = [
                                         {
                                             **patch,
@@ -2249,7 +2248,6 @@ def updateExploitsAndPatchesForJira():
                                                     patch[key]="NA"
                                         return data
                                     allPatches = convert_none_for_patches(allPatches)
-                                    # print(allPatches, "The existing with new patches, this we are checking just before preparing the data to be rendered on UI")
 
                                     combined_data = {
                                         "fields": {
@@ -2618,6 +2616,7 @@ def updateExploitsAndPatchesForJira():
                                         if newPatchIds:
                                             ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
                                             existingPatchIds = ast.literal_eval(ticket_service_details.patchesList or '[]')
+                                            print("patches to be saved in python DB \n", existingPatchIds + newPatchIds, "\n")
                                             newPatchesList = sorted(list(set(existingPatchIds + newPatchIds)))
                                             ticket_service_details.patchesList = str(newPatchesList)
                                             ticket_service_details.save()
@@ -2626,6 +2625,7 @@ def updateExploitsAndPatchesForJira():
                                         if newExploitIds:
                                             ticket_service_details = TicketingServiceDetails.objects.get(sq1VulId=vulnerabilityId, ticketServicePlatform='jira')
                                             existingExploitIds = ast.literal_eval(ticket_service_details.exploitsList or '[]')
+                                            print("eploits to be saved in python DB \n", existingExploitIds + newExploitIds, "\n")
                                             newExploitsList = sorted(list(set(existingExploitIds + newExploitIds)))
                                             ticket_service_details.exploitsList = str(newExploitsList)
                                             ticket_service_details.save()
