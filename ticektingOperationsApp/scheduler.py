@@ -4070,7 +4070,19 @@ def start_scheduler():
 
     start_time = datetime.now(pytz.UTC).replace(hour=8, minute=32, second=0, microsecond=0)
 
-    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(createCardInTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 3) % 60, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(updateExploitsAndPatchesForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 6) % 60, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(updateExploitsAndPatchesForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 9) % 60, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(changeVulnerabilityStatusForJira, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 11) % 60, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(changeVulnerabilityStatusForTrello, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 13) % 60, day_of_week='*', start_date=start_time))
+
+    scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 15) % 60, day_of_week='*', start_date=start_time))
 
     # scheduler.add_job(freshservice_call_create_ticket, CronTrigger(hour=start_time.hour, minute=start_time.minute, day_of_week='*', start_date=start_time))
     # scheduler.add_job(jira_call_create_ticket, CronTrigger(hour=start_time.hour, minute=(start_time.minute + 2) % 60, day_of_week='*', start_date=start_time))
