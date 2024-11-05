@@ -1,30 +1,31 @@
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
-from decouple import config
-from .dbUtils import get_connection
-from .models import *
-import json
-import requests
 import ast
 import base64
+import json
+import requests
+
+from decouple import config
+from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+from .dbUtils import get_connection
+from .models import *
+
 
 # Create your views here.
 @csrf_exempt
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-def register(request):
+@api_view(['POST'])
+def create_user(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not supported. Only POST requests are allowed.'}, status=405)
-
-    if request.user.email not in ast.literal_eval(config("SUPER_USERS")):
-        return JsonResponse({'error': 'Unauthorized access. Contact Admin.'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -73,6 +74,7 @@ def login(request):
             user = authenticate(username=username, password=password)
 
             if user is not None:
+                deleteToken = (OutstandingToken.objects.filter(user=user)).delete()
                 refresh = RefreshToken.for_user(user)
 
                 return JsonResponse({
@@ -99,8 +101,8 @@ def test(request):
 
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def delete_all_tickets_freshservice(request):
     def delete_tickets_for_account(domain, api_key):
         headers = {
@@ -168,8 +170,8 @@ def delete_all_tickets_freshservice(request):
 
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def createTicketManuallyJira(request):
     from .scheduler import jira_call_create_ticket
     req = jira_call_create_ticket()
@@ -177,24 +179,24 @@ def createTicketManuallyJira(request):
 
 
 @csrf_exempt
-# @api_view(['GET', 'DELETE'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def createTicketManuallyForFreshservice(request):
     from .scheduler import freshservice_call_create_ticket
     req = freshservice_call_create_ticket()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def updateTicketManuallyForFreshService(request):
     from .scheduler import updateExploitsAndPatchesForFreshservice
     req = updateExploitsAndPatchesForFreshservice()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-# @api_view(['DELETE'])
-# @permission_classes([IsAuthenticated])
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_jira_issues(request):
     def delete_issues_for_account(jira_url, auth):
         try:
@@ -259,16 +261,16 @@ def delete_jira_issues(request):
 
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def updateJiraPatchesAndExploits(request):
     from .scheduler import updateExploitsAndPatchesForJira
     req = updateExploitsAndPatchesForJira()
     return JsonResponse(json.loads(req._container[0]))
 
 @csrf_exempt
-# @api_view(['GET', 'DELETE'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def cardCreateTrello(request):
     from .scheduler import createCardInTrello
     req =createCardInTrello()
@@ -277,8 +279,8 @@ def cardCreateTrello(request):
     )
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def updatatePatchesAndExploitsForTrello(request):
     from .scheduler import updateExploitsAndPatchesForTrello
     req =updateExploitsAndPatchesForTrello()
@@ -287,8 +289,8 @@ def updatatePatchesAndExploitsForTrello(request):
     )
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def chechStatusForFreshServicesOrgs(request):
 
     try:
@@ -299,8 +301,8 @@ def chechStatusForFreshServicesOrgs(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def checkStatusForJiraOrgs(request):
     from .scheduler import changeVulnerabilityStatusForJira
     response = changeVulnerabilityStatusForJira()
