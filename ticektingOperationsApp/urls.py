@@ -25,10 +25,10 @@ urlpatterns = [
     # Trello
     path('create_trello_card/',cardCreateTrello),
     path('update-trello-exploits-patches/',updatatePatchesAndExploitsForTrello),
-    path('check-status-trello/', checkStatusForTrello)
+    path('check-status-trello/', checkStatusForTrello),
 
     
-    # path('check-status-freshservice/', chechStatusForFreshServicesOrgs),
+    path('allAssets/', allAssets),
     # path('check-status-jira/', checkStatusForJiraOrgs),
 ]
 

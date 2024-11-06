@@ -17,10 +17,36 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
 from .dbUtils import get_connection
+from .helper import get_user_permission_list
 from .models import *
 
 
 # Create your views here.
+'''sample API example'''
+
+# @csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def viewName(request):
+#     checkUser = (User.objects.filter(username = request.user.username)).exists()
+#     if checkUser:
+#         user = (User.objects.get(username = request.user.username))
+#         permissionList = ((UserApiMap.objects.get(user=user))).apiList
+#         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+#             print()
+#             '''
+#             Write your code here
+#             '''
+
+#         else:
+#             return JsonResponse({
+#                 "message":"Acces denied"
+#             })
+#     else:
+#         return JsonResponse({
+#             "message":"User not found"
+#         })
+
 @csrf_exempt
 @api_view(['POST'])
 def create_user(request):
@@ -128,7 +154,7 @@ def delete_all_tickets_freshservice(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             def delete_tickets_for_account(domain, api_key):
                 headers = {
@@ -210,7 +236,7 @@ def createTicketManuallyJira(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import jira_call_create_ticket
             req = jira_call_create_ticket()
@@ -232,7 +258,7 @@ def createTicketManuallyForFreshservice(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import freshservice_call_create_ticket
             req = freshservice_call_create_ticket()
@@ -253,7 +279,7 @@ def updateTicketManuallyForFreshService(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import updateExploitsAndPatchesForFreshservice
             req = updateExploitsAndPatchesForFreshservice()
@@ -274,7 +300,7 @@ def delete_jira_issues(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             def delete_issues_for_account(jira_url, auth):
                 try:
@@ -353,7 +379,7 @@ def updateJiraPatchesAndExploits(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True:
             from .scheduler import updateExploitsAndPatchesForJira
             req = updateExploitsAndPatchesForJira()
@@ -374,7 +400,7 @@ def cardCreateTrello(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import createCardInTrello
             req =createCardInTrello()
@@ -397,7 +423,7 @@ def updatatePatchesAndExploitsForTrello(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import updateExploitsAndPatchesForTrello
             req =updateExploitsAndPatchesForTrello()
@@ -420,7 +446,7 @@ def chechStatusForFreshServicesOrgs(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
 
             try:
@@ -445,12 +471,11 @@ def checkStatusForJiraOrgs(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
             from .scheduler import changeVulnerabilityStatusForJira
             response = changeVulnerabilityStatusForJira()
 
-            # Check if the response is an instance of JsonResponse
             if isinstance(response, JsonResponse):
                 return response
 
@@ -470,7 +495,7 @@ def checkStatusForTrello(request):
     checkUser = (User.objects.filter(username = request.user.username)).exists()
     if checkUser:
         user = (User.objects.get(username = request.user.username))
-        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        permissionList = get_user_permission_list(user)
         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True:
             from .scheduler import changeVulnerabilityStatusForTrello
             response = changeVulnerabilityStatusForTrello()
@@ -483,3 +508,42 @@ def checkStatusForTrello(request):
         return JsonResponse({
             "message":"User not found"
         })
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def allAssets(request):
+    checkUser = User.objects.filter(username=request.user.username).exists()
+    if checkUser:
+        user = User.objects.get(username=request.user.username)
+        permissionList = get_user_permission_list(user)
+        
+        view_name = request.resolver_match.view_name.split('.')[-1]
+
+        if view_name in list(permissionList) and permissionList.get(view_name) == True or request.user.is_superuser:
+            connection = get_connection()
+            if not connection or not connection.is_connected():
+                return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+            
+            try:
+                with connection.cursor(dictionary=True) as cursor:
+                    cursor.execute("SELECT * FROM workstations;")
+                    workstations = cursor.fetchall()
+
+                    cursor.execute("SELECT * FROM servers;")
+                    servers = cursor.fetchall()
+                
+                return JsonResponse({
+                    "workstations": workstations,
+                    "servers": servers
+                }, status=200)
+
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=500)
+
+        else:
+            return JsonResponse({"message": "Access denied"}, status=403)
+    
+    else:
+        return JsonResponse({"message": "User not found"}, status=404)
+    
