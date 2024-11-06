@@ -31,7 +31,7 @@ from .models import *
 #     checkUser = (User.objects.filter(username = request.user.username)).exists()
 #     if checkUser:
 #         user = (User.objects.get(username = request.user.username))
-#         permissionList = ((UserApiMap.objects.get(user=user))).apiList
+#         permissionList = get_user_permission_list(user)
 #         if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
 #             print()
 #             '''
