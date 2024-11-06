@@ -25,7 +25,7 @@ from .models import *
 @api_view(['POST'])
 def create_user(request):
     if not request.user.is_superuser:
-        return JsonResponse({'error': 'Permission denied. Only superusers can create users.'}, status=403)
+        return JsonResponse({'error': 'Permission denied. Contact Admin.'}, status=403)
     
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not supported. Only POST requests are allowed.'}, status=405)
