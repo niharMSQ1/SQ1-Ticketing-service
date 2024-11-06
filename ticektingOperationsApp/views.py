@@ -1,5 +1,6 @@
 import ast
 import base64
+import inspect
 import json
 import requests
 
@@ -32,6 +33,19 @@ def create_user(request):
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
+        apiPermissions = {
+            "createTicketManuallyForFreshservice": True,
+            "delete_all_tickets_freshservice": False,
+            "chechStatusForFreshServicesOrgs": False,
+            "createTicketManuallyJira": False,
+            "updateJiraPatchesAndExploits": True,
+            "delete_jira_issues": False,
+            "checkStatusForJiraOrgs": True,
+            "cardCreateTrello": True,
+            "updatatePatchesAndExploitsForTrello": True,
+            "checkStatusForTrello": True
+        }
+
 
         if not username or not email or not password:
             return JsonResponse({'error': 'All fields (username, email, password) are required.'}, status=400)
@@ -47,6 +61,11 @@ def create_user(request):
             email=email,
             password=make_password(password) 
         )
+
+        givePermissions = UserApiMap(user=user ,apiList=apiPermissions)
+        givePermissions.save()
+
+
 
         return JsonResponse({
             'message': 'User registered successfully',
@@ -104,218 +123,361 @@ def test(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def delete_all_tickets_freshservice(request):
-    def delete_tickets_for_account(domain, api_key):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Basic {api_key}"
-        }
-        tickets_url = f"https://{domain}/api/v2/tickets"
-        params = {
-            "per_page": 100,
-            "page": 1 
-        }
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            def delete_tickets_for_account(domain, api_key):
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Basic {api_key}"
+                }
+                tickets_url = f"https://{domain}/api/v2/tickets"
+                params = {
+                    "per_page": 100,
+                    "page": 1 
+                }
 
-        try:
-            total_deleted = 0
-            while True:
-                response = requests.get(tickets_url, headers=headers, params=params)
-                if response.status_code != 200:
-                    return {"error": f"Failed to fetch tickets from {domain}: {response.json()}"}, response.status_code
+                try:
+                    total_deleted = 0
+                    while True:
+                        response = requests.get(tickets_url, headers=headers, params=params)
+                        if response.status_code != 200:
+                            return {"error": f"Failed to fetch tickets from {domain}: {response.json()}"}, response.status_code
 
-                tickets = response.json().get("tickets", [])
-                if not tickets:
-                    return {"message": f"No tickets found or all tickets have been deleted on {domain}. Total deleted: {total_deleted}"}, 200
+                        tickets = response.json().get("tickets", [])
+                        if not tickets:
+                            return {"message": f"No tickets found or all tickets have been deleted on {domain}. Total deleted: {total_deleted}"}, 200
 
-                for ticket in tickets:
-                    ticket_id = ticket.get("id")
-                    delete_url = f"{tickets_url}/{ticket_id}"
-                    delete_response = requests.delete(delete_url, headers=headers)
+                        for ticket in tickets:
+                            ticket_id = ticket.get("id")
+                            delete_url = f"{tickets_url}/{ticket_id}"
+                            delete_response = requests.delete(delete_url, headers=headers)
 
-                    if delete_response.status_code == 204:
-                        total_deleted += 1
-                        print(f"Ticket {ticket_id} deleted successfully on {domain}.")
-                    else:
-                        print(f"Failed to delete ticket {ticket_id} on {domain}: {delete_response.json()}")
+                            if delete_response.status_code == 204:
+                                total_deleted += 1
+                                print(f"Ticket {ticket_id} deleted successfully on {domain}.")
+                            else:
+                                print(f"Failed to delete ticket {ticket_id} on {domain}: {delete_response.json()}")
 
-                if not response.json().get("next_page"):
-                    break 
+                        if not response.json().get("next_page"):
+                            break 
 
-                params["page"] += 1
+                        params["page"] += 1
 
-            return {"message": f"All tickets have been deleted on {domain}. Total deleted: {total_deleted}"}, 200
+                    return {"message": f"All tickets have been deleted on {domain}. Total deleted: {total_deleted}"}, 200
 
-        except Exception as e:
-            return {"error": str(e)}, 500
+                except Exception as e:
+                    return {"error": str(e)}, 500
 
-    def fetch_freshservice_accounts():
-        connection = get_connection()
-        cursor = connection.cursor(dictionary=True)
-        query = "SELECT * FROM ticketing_tool WHERE type = 'freshservice'"
-        cursor.execute(query)
-        accounts = cursor.fetchall()
-        cursor.close()
-        return accounts
+            def fetch_freshservice_accounts():
+                connection = get_connection()
+                cursor = connection.cursor(dictionary=True)
+                query = "SELECT * FROM ticketing_tool WHERE type = 'freshservice'"
+                cursor.execute(query)
+                accounts = cursor.fetchall()
+                cursor.close()
+                return accounts
 
-    accounts = fetch_freshservice_accounts()
+            accounts = fetch_freshservice_accounts()
 
-    results = []
-    for account in accounts:
-        account_values = json.loads(account['values']) 
-        domain = account_values.get("url").replace("https://", "")
-        api_key =base64.b64encode(bytes(account_values.get("key"), "utf-8")).decode("utf-8", "ignore")
-        result, status_code = delete_tickets_for_account(domain, api_key)
-        results.append({"domain": domain, "result": result, "status_code": status_code})
+            results = []
+            for account in accounts:
+                account_values = json.loads(account['values']) 
+                domain = account_values.get("url").replace("https://", "")
+                api_key =base64.b64encode(bytes(account_values.get("key"), "utf-8")).decode("utf-8", "ignore")
+                result, status_code = delete_tickets_for_account(domain, api_key)
+                results.append({"domain": domain, "result": result, "status_code": status_code})
 
-    return JsonResponse({"results": results}, status=200)
+            return JsonResponse({"results": results}, status=200)
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def createTicketManuallyJira(request):
-    from .scheduler import jira_call_create_ticket
-    req = jira_call_create_ticket()
-    return JsonResponse(json.loads(req._container[0]))
-
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import jira_call_create_ticket
+            req = jira_call_create_ticket()
+            return JsonResponse(json.loads(req._container[0]))
+        
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def createTicketManuallyForFreshservice(request):
-    from .scheduler import freshservice_call_create_ticket
-    req = freshservice_call_create_ticket()
-    return JsonResponse(json.loads(req._container[0]))
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import freshservice_call_create_ticket
+            req = freshservice_call_create_ticket()
+            return JsonResponse(json.loads(req._container[0]))
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def updateTicketManuallyForFreshService(request):
-    from .scheduler import updateExploitsAndPatchesForFreshservice
-    req = updateExploitsAndPatchesForFreshservice()
-    return JsonResponse(json.loads(req._container[0]))
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import updateExploitsAndPatchesForFreshservice
+            req = updateExploitsAndPatchesForFreshservice()
+            return JsonResponse(json.loads(req._container[0]))
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_jira_issues(request):
-    def delete_issues_for_account(jira_url, auth):
-        try:
-            total_deleted = 0
-            start_at = 0
-            max_results = 100  # Fetch 100 issues per page
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            def delete_issues_for_account(jira_url, auth):
+                try:
+                    total_deleted = 0
+                    start_at = 0
+                    max_results = 100  # Fetch 100 issues per page
 
-            while True:
-                search_url = f"{jira_url}/rest/api/3/search?startAt={start_at}&maxResults={max_results}"
-                response = requests.get(search_url, auth=auth)
+                    while True:
+                        search_url = f"{jira_url}/rest/api/3/search?startAt={start_at}&maxResults={max_results}"
+                        response = requests.get(search_url, auth=auth)
 
-                if response.status_code != 200:
-                    return {'error': response.text}, response.status_code
+                        if response.status_code != 200:
+                            return {'error': response.text}, response.status_code
 
-                issues = response.json().get('issues', [])
-                if not issues:
-                    break  # No more issues to delete
+                        issues = response.json().get('issues', [])
+                        if not issues:
+                            break  # No more issues to delete
 
-                for issue in issues:
-                    issue_key = issue['key']
-                    delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issue_key}', auth=auth)
+                        for issue in issues:
+                            issue_key = issue['key']
+                            delete_response = requests.delete(f'{jira_url}/rest/api/3/issue/{issue_key}', auth=auth)
 
-                    if delete_response.status_code == 204:
-                        total_deleted += 1
-                        print(f"Ticket {issue_key} deleted successfully.")
-                    else:
-                        print(f"Failed to delete ticket {issue_key}: {delete_response.text}")
+                            if delete_response.status_code == 204:
+                                total_deleted += 1
+                                print(f"Ticket {issue_key} deleted successfully.")
+                            else:
+                                print(f"Failed to delete ticket {issue_key}: {delete_response.text}")
 
-                start_at += max_results  # Move to the next page of results
+                        start_at += max_results  # Move to the next page of results
 
-                if start_at >= response.json().get('total', 0):
-                    break  # All issues have been processed
+                        if start_at >= response.json().get('total', 0):
+                            break  # All issues have been processed
 
-            return {'message': f"All tickets have been deleted. Total deleted: {total_deleted}"}, 200
+                    return {'message': f"All tickets have been deleted. Total deleted: {total_deleted}"}, 200
 
-        except Exception as e:
-            return {'error': str(e)}, 500
+                except Exception as e:
+                    return {'error': str(e)}, 500
 
-    def fetch_jira_accounts():
-        connection = get_connection()
-        cursor = connection.cursor(dictionary=True)
-        query = "SELECT * FROM ticketing_tool WHERE type = 'jira'"
-        cursor.execute(query)
-        accounts = cursor.fetchall()
-        cursor.close()
-        return accounts
+            def fetch_jira_accounts():
+                connection = get_connection()
+                cursor = connection.cursor(dictionary=True)
+                query = "SELECT * FROM ticketing_tool WHERE type = 'jira'"
+                cursor.execute(query)
+                accounts = cursor.fetchall()
+                cursor.close()
+                return accounts
 
-    accounts = fetch_jira_accounts()
+            accounts = fetch_jira_accounts()
 
-    results = []
-    for account in accounts:
-        account_values = json.loads(account['values'])
-        jira_url = account_values.get("url")
-        jira_username = account_values.get("username")
-        jira_password = account_values.get("password")
-        auth = (jira_username, jira_password)
+            results = []
+            for account in accounts:
+                account_values = json.loads(account['values'])
+                jira_url = account_values.get("url")
+                jira_username = account_values.get("username")
+                jira_password = account_values.get("password")
+                auth = (jira_username, jira_password)
 
-        result, status_code = delete_issues_for_account(jira_url, auth)
-        results.append({"jira_url": jira_url, "result": result, "status_code": status_code})
+                result, status_code = delete_issues_for_account(jira_url, auth)
+                results.append({"jira_url": jira_url, "result": result, "status_code": status_code})
 
-    return JsonResponse({"results": results}, status=200)
+            return JsonResponse({"results": results}, status=200)
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def updateJiraPatchesAndExploits(request):
-    from .scheduler import updateExploitsAndPatchesForJira
-    req = updateExploitsAndPatchesForJira()
-    return JsonResponse(json.loads(req._container[0]))
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True:
+            from .scheduler import updateExploitsAndPatchesForJira
+            req = updateExploitsAndPatchesForJira()
+            return JsonResponse(json.loads(req._container[0]))
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def cardCreateTrello(request):
-    from .scheduler import createCardInTrello
-    req =createCardInTrello()
-    return JsonResponse(
-        json.loads(req._container[0])
-    )
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import createCardInTrello
+            req =createCardInTrello()
+            return JsonResponse(
+                json.loads(req._container[0])
+            )
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def updatatePatchesAndExploitsForTrello(request):
-    from .scheduler import updateExploitsAndPatchesForTrello
-    req =updateExploitsAndPatchesForTrello()
-    return JsonResponse(
-        json.loads(req._container[0])
-    )
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import updateExploitsAndPatchesForTrello
+            req =updateExploitsAndPatchesForTrello()
+            return JsonResponse(
+                json.loads(req._container[0])
+            )
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def chechStatusForFreshServicesOrgs(request):
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
 
-    try:
-        from .scheduler import changeVulnerabilityStatusForFreshService
-        return changeVulnerabilityStatusForFreshService()
-    
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+            try:
+                from .scheduler import changeVulnerabilityStatusForFreshService
+                return changeVulnerabilityStatusForFreshService()
+            
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=500)
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def checkStatusForJiraOrgs(request):
-    from .scheduler import changeVulnerabilityStatusForJira
-    response = changeVulnerabilityStatusForJira()
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True: 
+            from .scheduler import changeVulnerabilityStatusForJira
+            response = changeVulnerabilityStatusForJira()
 
-    # Check if the response is an instance of JsonResponse
-    if isinstance(response, JsonResponse):
-        return response
+            # Check if the response is an instance of JsonResponse
+            if isinstance(response, JsonResponse):
+                return response
 
-    return JsonResponse({"message": "Status check completed successfully."}, status=200)
+            return JsonResponse({"message": "Status check completed successfully."}, status=200)
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })
 
 
 @csrf_exempt
 def checkStatusForTrello(request):
-    from .scheduler import changeVulnerabilityStatusForTrello
-    response = changeVulnerabilityStatusForTrello()
-    return JsonResponse({})
+    checkUser = (User.objects.filter(username = request.user.username)).exists()
+    if checkUser:
+        user = (User.objects.get(username = request.user.username))
+        permissionList = ((UserApiMap.objects.get(user=user))).apiList
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get((request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True:
+            from .scheduler import changeVulnerabilityStatusForTrello
+            response = changeVulnerabilityStatusForTrello()
+            return JsonResponse({})
+        else:
+            return JsonResponse({
+                "message":"Acces denied"
+            })
+    else:
+        return JsonResponse({
+            "message":"User not found"
+        })

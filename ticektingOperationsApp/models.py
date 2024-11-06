@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.contrib.auth.models import User
 import json
 
 
@@ -68,3 +69,7 @@ class TicketingServiceDetails(models.Model):
 
     def get_attachments(self):
         return json.loads(self.attachments)
+
+class UserApiMap(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    apiList = models.JSONField(default=list)
