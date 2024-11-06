@@ -1,5 +1,3 @@
-# helper.py
-
 from .models import UserApiMap
 
 def get_user_permission_list(user):
