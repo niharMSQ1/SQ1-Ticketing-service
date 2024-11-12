@@ -547,3 +547,52 @@ def allAssets(request):
     else:
         return JsonResponse({"message": "User not found"}, status=404)
     
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getAssetDetails(request, id):
+    checkUser = (User.objects.filter(username=request.user.username)).exists()
+
+    if checkUser:
+        user = (User.objects.get(username=request.user.username))
+        permissionList = get_user_permission_list(user)
+
+        if (request.resolver_match.view_name).split('.')[-1] in list(permissionList) and permissionList.get(
+                (request.resolver_match.view_name).split('.')[-1]) == True or request.user.is_superuser == True:
+            connection = get_connection()
+
+            if not connection or not connection.is_connected():
+                return JsonResponse({"error": "Failed to connect to the database"}, status=500)
+
+            try:
+                with connection.cursor(dictionary=True) as cursor:
+                    cursor.execute("SELECT * FROM assetables WHERE id = %s", (id,))
+                    assetables = cursor.fetchall()
+                    asset_id = assetables[0]['assetable_id']
+
+                    if assetables[0]['assetable_type'] == 'App\\Models\\Servers':
+                        cursor.execute("SELECT * FROM servers WHERE id = %s", (asset_id,))
+                        serverDetails = cursor.fetchall()
+                        return JsonResponse({
+                            "Server Details": serverDetails,
+                        }, status=200)
+
+                    elif assetables[0]['assetable_type'] == 'App\\Models\\Workstations':
+                        cursor.execute("SELECT * FROM servers WHERE id = %s", (asset_id,))
+                        workstationDetails = cursor.fetchall()
+                        return JsonResponse({
+                            "Workstation Details": workstationDetails,
+                        }, status=200)
+
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=500)
+
+        else:
+            return JsonResponse({
+                "message": "Access denied"
+            })
+
+    else:
+        return JsonResponse({
+            "message": "User not found"
+        })

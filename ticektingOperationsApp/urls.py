@@ -28,7 +28,8 @@ urlpatterns = [
     path('check-status-trello/', checkStatusForTrello),
 
     
-    path('allAssets/', allAssets),
+    path('all-assets/', allAssets),
+    path('get-asset-details/<int:id>/', getAssetDetails),
     # path('check-status-jira/', checkStatusForJiraOrgs),
 ]
 
