@@ -21,6 +21,8 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -95,6 +97,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 from datetime import timedelta
@@ -106,4 +109,8 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': 'your-secret-key-here',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'SQ1 Discovery APIs',
 }

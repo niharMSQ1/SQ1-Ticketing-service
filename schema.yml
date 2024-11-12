@@ -1,0 +1,189 @@
+openapi: 3.0.3
+info:
+  title: SQ1 Discovery APIs
+  version: 0.0.0
+paths:
+  /allAssets/:
+    get:
+      operationId: allAssets_retrieve
+      tags:
+      - allAssets
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /check-status-freshservice/:
+    get:
+      operationId: check_status_freshservice_retrieve
+      tags:
+      - check-status-freshservice
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /check-status-jira/:
+    get:
+      operationId: check_status_jira_retrieve
+      tags:
+      - check-status-jira
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /create-ticket-manually-freshservice/:
+    get:
+      operationId: create_ticket_manually_freshservice_retrieve
+      tags:
+      - create-ticket-manually-freshservice
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: create_ticket_manually_freshservice_destroy
+      tags:
+      - create-ticket-manually-freshservice
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /create-ticket-manually-jira/:
+    get:
+      operationId: create_ticket_manually_jira_retrieve
+      tags:
+      - create-ticket-manually-jira
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /create-user/:
+    post:
+      operationId: create_user_create
+      tags:
+      - create-user
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /create_trello_card/:
+    get:
+      operationId: create_trello_card_retrieve
+      tags:
+      - create_trello_card
+      security:
+      - jwtAuth: []
+      responses:
+        '200': 
+          description: No response body
+    delete:
+      operationId: create_trello_card_destroy
+      tags:
+      - create_trello_card
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /delete-all-tickets-freshservice/:
+    get:
+      operationId: delete_all_tickets_freshservice_retrieve
+      tags:
+      - delete-all-tickets-freshservice
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /delete_jira_issues/:
+    delete:
+      operationId: delete_jira_issues_destroy
+      tags:
+      - delete_jira_issues
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /token/refresh/:
+    post:
+      operationId: token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /update-jira-exploits-patches/:
+    get:
+      operationId: update_jira_exploits_patches_retrieve
+      tags:
+      - update-jira-exploits-patches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /update-ticket-manually-freshservice/:
+    get:
+      operationId: update_ticket_manually_freshservice_retrieve
+      tags:
+      - update-ticket-manually-freshservice
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /update-trello-exploits-patches/:
+    get:
+      operationId: update_trello_exploits_patches_retrieve
+      tags:
+      - update-trello-exploits-patches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
