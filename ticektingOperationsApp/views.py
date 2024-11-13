@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.decorators import api_view, permission_classes
@@ -596,3 +596,109 @@ def getAssetDetails(request, id):
         return JsonResponse({
             "message": "User not found"
         })
+    
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def retire_assets_list(request):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            connection = get_connection()
+            with connection.cursor() as cursor: # Need to verify the query
+                cursor.execute("""
+                    SELECT assetable_id 
+                    FROM assetables 
+                    WHERE assetable_type = 'App\\Models\\Workstations' 
+                    AND assetable_id IN (
+                        SELECT id 
+                        FROM workstations 
+                        WHERE deleted_at IS NULL
+                    )
+                    UNION
+                    SELECT assetable_id 
+                    FROM assetables 
+                    WHERE assetable_type = 'App\\Models\\Servers' 
+                    AND assetable_id IN (
+                        SELECT id 
+                        FROM servers 
+                        WHERE deleted_at IS NULL
+                    );
+                """)
+
+                results = cursor.fetchall()
+                assetable_ids = [{'assetable_id': row[0]} for row in results]
+
+            return JsonResponse({
+                "Retire asset lists": assetable_ids,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listVulnerabilities(request):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            connection = get_connection()
+            with connection.cursor() as cursor: # Need to verify the query
+                cursor.execute("SELECT * FROM vulnerabilities")
+
+                results = cursor.fetchall()
+
+            return JsonResponse({
+                "Vulnerabilities lists": results,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listCriticalVulnerabilities(request):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            connection = get_connection()
+            with connection.cursor() as cursor: # Need to verify the query
+                cursor.execute("SELECT * FROM vulnerabilities where risk >= 7")
+
+                results = cursor.fetchall()
+
+            return JsonResponse({
+                "Critical Vulnerabilities lists": results,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)

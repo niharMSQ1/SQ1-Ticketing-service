@@ -30,6 +30,9 @@ urlpatterns = [
     
     path('all-assets/', allAssets),
     path('get-asset-details/<int:id>/', getAssetDetails),
+    path('get-retired-assets-list/',retire_assets_list),
+    path('get-vulnerabilitiess-list/',listVulnerabilities),
+    path('get-critical-vulnerabilities-list/', listCriticalVulnerabilities)
     # path('check-status-jira/', checkStatusForJiraOrgs),
 ]
 
