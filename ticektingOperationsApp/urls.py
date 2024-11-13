@@ -32,7 +32,8 @@ urlpatterns = [
     path('get-asset-details/<int:id>/', getAssetDetails),
     path('get-retired-assets-list/',retire_assets_list),
     path('get-vulnerabilitiess-list/',listVulnerabilities),
-    path('get-critical-vulnerabilities-list/', listCriticalVulnerabilities)
+    path('get-critical-vulnerabilities-list/', listCriticalVulnerabilities),
+    path('get-vulnerability-details/<int:id>/', getVulnerabilityDetails),
     # path('check-status-jira/', checkStatusForJiraOrgs),
 ]
 

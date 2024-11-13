@@ -702,3 +702,32 @@ def listCriticalVulnerabilities(request):
     return JsonResponse({
         "message": "Access denied"
     }, status=403)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getVulnerabilityDetails(request,id):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            connection = get_connection()
+            with connection.cursor() as cursor: # Need to verify the query
+                cursor.execute("SELECT * FROM vulnerabilities WHERE id = %s", (id,))
+
+                results = cursor.fetchall()
+
+            return JsonResponse({
+                "Vulnerabilities details": results,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)
