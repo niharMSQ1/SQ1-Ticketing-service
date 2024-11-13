@@ -34,7 +34,8 @@ urlpatterns = [
     path('get-vulnerabilitiess-list/',listVulnerabilities),
     path('get-critical-vulnerabilities-list/', listCriticalVulnerabilities),
     path('get-vulnerability-details/<int:id>/', getVulnerabilityDetails),
-    # path('check-status-jira/', checkStatusForJiraOrgs),
+    path('get-vulnerability-exploits/<int:id>/', getVulnerabilityExploits),
+    path('get-vulnerability-patches/<int:id>/', getVulnerabilityPatches),
 ]
 
 
