@@ -36,6 +36,7 @@ urlpatterns = [
     path('get-vulnerability-details/<int:id>/', getVulnerabilityDetails),
     path('get-vulnerability-exploits/<int:id>/', getVulnerabilityExploits),
     path('get-vulnerability-patches/<int:id>/', getVulnerabilityPatches),
+    path('reported-assets-list/',reportedAssetsList)
 ]
 
 

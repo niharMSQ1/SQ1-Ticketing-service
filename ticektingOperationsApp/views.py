@@ -597,6 +597,54 @@ def getAssetDetails(request, id):
             "message": "User not found"
         })
     
+# @csrf_exempt
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def retire_assets_list(request):
+#     user = get_object_or_404(User, username=request.user.username)
+#     permission_list = get_user_permission_list(user)
+
+#     view_name = request.resolver_match.view_name.split('.')[-1]
+#     has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+#     if has_permission:
+#         try:
+#             connection = get_connection()
+#             with connection.cursor() as cursor: # Need to verify the query
+#                 cursor.execute("""
+#                     SELECT assetable_id 
+#                     FROM assetables 
+#                     WHERE assetable_type = 'App\\Models\\Workstations' 
+#                     AND assetable_id IN (
+#                         SELECT id 
+#                         FROM workstations 
+#                         WHERE deleted_at IS NULL
+#                     )
+#                     UNION
+#                     SELECT assetable_id 
+#                     FROM assetables 
+#                     WHERE assetable_type = 'App\\Models\\Servers' 
+#                     AND assetable_id IN (
+#                         SELECT id 
+#                         FROM servers 
+#                         WHERE deleted_at IS NULL
+#                     );
+#                 """)
+
+#                 results = cursor.fetchall()
+#                 assetable_ids = [{'assetable_id': row[0]} for row in results]
+
+#             return JsonResponse({
+#                 "Retire asset lists": assetable_ids,
+#             }, status=200)
+
+#         except Exception as e:
+#             return JsonResponse({"error": str(e)}, status=500)
+
+#     return JsonResponse({
+#         "message": "Access denied"
+#     }, status=403)
+
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -609,33 +657,34 @@ def retire_assets_list(request):
 
     if has_permission:
         try:
+            query = r"""
+                SELECT assetable_id 
+                FROM assetables 
+                WHERE assetable_type = 'App\\Models\\Workstations' 
+                AND assetable_id IN (
+                    SELECT id 
+                    FROM workstations 
+                    WHERE deleted_at IS NOT NULL
+                )
+                UNION
+                SELECT assetable_id 
+                FROM assetables 
+                WHERE assetable_type = 'App\\Models\\Servers' 
+                AND assetable_id IN (
+                    SELECT id 
+                    FROM servers 
+                    WHERE deleted_at IS NOT NULL
+                );
+            """
             connection = get_connection()
-            with connection.cursor() as cursor: # Need to verify the query
-                cursor.execute("""
-                    SELECT assetable_id 
-                    FROM assetables 
-                    WHERE assetable_type = 'App\\Models\\Workstations' 
-                    AND assetable_id IN (
-                        SELECT id 
-                        FROM workstations 
-                        WHERE deleted_at IS NULL
-                    )
-                    UNION
-                    SELECT assetable_id 
-                    FROM assetables 
-                    WHERE assetable_type = 'App\\Models\\Servers' 
-                    AND assetable_id IN (
-                        SELECT id 
-                        FROM servers 
-                        WHERE deleted_at IS NULL
-                    );
-                """)
-
+            with connection.cursor() as cursor:
+                cursor.execute(query)
                 results = cursor.fetchall()
+                # Structure results as a list of dictionaries
                 assetable_ids = [{'assetable_id': row[0]} for row in results]
 
             return JsonResponse({
-                "Retire asset lists": assetable_ids,
+                "retire_asset_list": assetable_ids,
             }, status=200)
 
         except Exception as e:
@@ -658,7 +707,7 @@ def listVulnerabilities(request):
     if has_permission:
         try:
             connection = get_connection()
-            with connection.cursor() as cursor: # Need to verify the query
+            with connection.cursor() as cursor: 
                 cursor.execute("SELECT * FROM vulnerabilities")
 
                 results = cursor.fetchall()
@@ -687,7 +736,7 @@ def listCriticalVulnerabilities(request):
     if has_permission:
         try:
             connection = get_connection()
-            with connection.cursor() as cursor: # Need to verify the query
+            with connection.cursor() as cursor:
                 cursor.execute("SELECT * FROM vulnerabilities where risk >= 7")
 
                 results = cursor.fetchall()
@@ -781,6 +830,51 @@ def getVulnerabilityPatches(request,id):
 
             return JsonResponse({
                 "Patche(s) lists": results,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def reportedAssetsList(request):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            # Execute the query as a raw string to handle backslashes correctly
+            query = r"""
+                SELECT * FROM assetables a
+                JOIN servers s ON a.assetable_id = s.id AND a.assetable_type = 'App\\Models\\Servers'
+                WHERE s.comment IS NOT NULL
+
+                UNION ALL
+
+                SELECT * FROM assetables a
+                JOIN workstations w ON a.assetable_id = w.id AND a.assetable_type = 'App\\Models\\Workstations'
+                WHERE w.comment IS NOT NULL;
+            """
+            
+            # Execute the query
+            connection = get_connection()
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+
+                # Fetch results and format them as dictionaries
+                columns = [col[0] for col in cursor.description]
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            return JsonResponse({
+                "reported_assets_list": results,
             }, status=200)
 
         except Exception as e:
