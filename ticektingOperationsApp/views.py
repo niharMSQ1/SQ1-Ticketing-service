@@ -883,3 +883,41 @@ def reportedAssetsList(request):
     return JsonResponse({
         "message": "Access denied"
     }, status=403)
+
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getAssetByTag(request, id):
+    user = get_object_or_404(User, username=request.user.username)
+    permission_list = get_user_permission_list(user)
+
+    view_name = request.resolver_match.view_name.split('.')[-1]
+    has_permission = permission_list.get(view_name) is True or request.user.is_superuser
+
+    if has_permission:
+        try:
+            query = """
+                SELECT * 
+                FROM assetables 
+                JOIN taggables ON taggables.taggable_id = assetables.assetable_id 
+                WHERE taggables.tag_id = %s;
+            """
+
+            connection = get_connection()
+            with connection.cursor() as cursor:
+                cursor.execute(query, [id])
+                results = cursor.fetchall()
+
+            column_names = [col[0] for col in cursor.description]
+            reported_assets_list = [dict(zip(column_names, row)) for row in results]
+
+            return JsonResponse({
+                "assets": reported_assets_list,
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({
+        "message": "Access denied"
+    }, status=403)
