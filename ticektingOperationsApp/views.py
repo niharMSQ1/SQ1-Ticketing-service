@@ -851,7 +851,6 @@ def reportedAssetsList(request):
 
     if has_permission:
         try:
-            # Execute the query as a raw string to handle backslashes correctly
             query = r"""
                 SELECT * FROM assetables a
                 JOIN servers s ON a.assetable_id = s.id AND a.assetable_type = 'App\\Models\\Servers'
@@ -863,13 +862,11 @@ def reportedAssetsList(request):
                 JOIN workstations w ON a.assetable_id = w.id AND a.assetable_type = 'App\\Models\\Workstations'
                 WHERE w.comment IS NOT NULL;
             """
-            
-            # Execute the query
+
             connection = get_connection()
             with connection.cursor() as cursor:
                 cursor.execute(query)
 
-                # Fetch results and format them as dictionaries
                 columns = [col[0] for col in cursor.description]
                 results = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
